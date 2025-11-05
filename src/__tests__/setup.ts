@@ -2,42 +2,47 @@
 import { vi } from 'vitest'
 import '@testing-library/jest-dom'
 
-// Mock ArcGIS before any imports
-vi.mock('@arcgis/core', () => ({
-  Map: class MockMap {},
-  MapView: class MockMapView {},
-  GraphicsLayer: class MockGraphicsLayer {
-    graphics = { filter: () => [], find: () => null }
-    add = vi.fn()
-    remove = vi.fn()
+// Mock Leaflet for testing
+vi.mock('leaflet', () => ({
+  default: {
+    map: vi.fn(() => ({
+      whenReady: vi.fn((callback) => callback()),
+      on: vi.fn(() => ({ off: vi.fn() })),
+      off: vi.fn(),
+      remove: vi.fn(),
+      fitBounds: vi.fn(),
+      removeLayer: vi.fn(),
+    })),
+    tileLayer: vi.fn(() => ({ addTo: vi.fn() })),
+    marker: vi.fn(() => ({ addTo: vi.fn(), bindPopup: vi.fn() })),
+    polyline: vi.fn(() => ({ addTo: vi.fn() })),
+    divIcon: vi.fn(),
+    Icon: {
+      Default: {
+        prototype: {},
+        mergeOptions: vi.fn(),
+      },
+    },
   },
-  Graphic: class MockGraphic {},
-  SimpleMarkerSymbol: class MockSimpleMarkerSymbol {},
-  SimpleLineSymbol: class MockSimpleLineSymbol {},
-  Point: class MockPoint {},
-  Polyline: class MockPolyline {},
-  Color: class MockColor {},
 }))
 
-// Mock arcgis module
-vi.mock('@/lib/arcgis', () => ({
+// Mock map utilities
+vi.mock('@/lib/map', () => ({
   initializeMap: vi.fn(() => ({
-    map: {},
-    view: {
-      destroy: vi.fn(),
-      on: vi.fn(() => ({ remove: vi.fn() })),
-      toMap: vi.fn(() => ({ longitude: -122.4, latitude: 37.79 })),
-    },
-    graphicsLayer: {
-      graphics: { filter: () => [], find: () => null },
-      add: vi.fn(),
+    map: {
+      whenReady: vi.fn((callback) => callback()),
+      on: vi.fn(() => ({ off: vi.fn() })),
+      off: vi.fn(),
       remove: vi.fn(),
     },
+    markers: [],
+    pathLayer: null,
   })),
   addBaseMarker: vi.fn(),
   addDroneMarker: vi.fn(),
   addPathToMap: vi.fn(),
   clearPath: vi.fn(),
+  clearMarkers: vi.fn(),
   updateDronePosition: vi.fn(),
 }))
 

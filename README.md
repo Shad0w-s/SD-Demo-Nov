@@ -82,10 +82,11 @@ python app.py
 
 ## 🛠️ Tech Stack
 
-- **Frontend**: Next.js 14 (App Router), TailwindCSS, ArcGIS JS SDK, Framer Motion
+- **Frontend**: Next.js 14 (App Router), Material UI, Leaflet/OpenStreetMap
 - **Backend**: Flask, SQLAlchemy, PostgreSQL
 - **Auth**: Supabase Auth (JWT)
 - **State Management**: Zustand
+- **Mapping**: Leaflet with OpenStreetMap (free, no API key required)
 
 ## 📝 License
 

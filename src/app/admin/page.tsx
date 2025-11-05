@@ -1,18 +1,37 @@
 'use client'
 
+import { Box, Paper, Typography } from '@mui/material'
+import { AdminPanelSettings } from '@mui/icons-material'
 import AuthGuard from '@/components/AuthGuard'
 
 export default function AdminPage() {
   return (
     <AuthGuard requiredRole="admin">
-      <div className="min-h-screen bg-gray-900 p-8">
-        <h1 className="text-3xl font-bold text-white mb-6">Admin Panel</h1>
-        {/* Admin tables will be implemented */}
-        <div className="glass p-6">
-          <p className="text-white/80">Admin management interface coming soon...</p>
-        </div>
-      </div>
+      <Box
+        sx={{
+          minHeight: '100vh',
+          bgcolor: 'background.default',
+          p: 4,
+        }}
+      >
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 4 }}>
+          <AdminPanelSettings sx={{ fontSize: 40 }} />
+          <Typography variant="h4" fontWeight="bold">
+            Admin Panel
+          </Typography>
+        </Box>
+        <Paper
+          elevation={3}
+          sx={{
+            p: 4,
+            borderRadius: 2,
+          }}
+        >
+          <Typography variant="body1" color="text.secondary">
+            Admin management interface coming soon...
+          </Typography>
+        </Paper>
+      </Box>
     </AuthGuard>
   )
 }
-
