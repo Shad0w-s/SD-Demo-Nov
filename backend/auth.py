@@ -1,15 +1,15 @@
+"""
+Authentication dependencies for FastAPI
+"""
 import jwt
-from flask import request, abort
-from functools import wraps
+from fastapi import Depends, HTTPException, status, Header
+from typing import Optional, Dict, Any
 import os
 
-# Supabase uses HS256 with the JWT secret for anon key verification
-# For production, we should verify against Supabase's JWKS endpoint
-# For now, we'll verify the token signature and basic claims
 SUPABASE_URL = os.getenv('SUPABASE_PROJECT_URL', '')
 SUPABASE_JWT_SECRET = os.getenv('SUPABASE_JWT_SECRET', '')
 
-def verify_token(token):
+def verify_token(token: str) -> Dict[str, Any]:
     """Verify JWT token from Supabase"""
     try:
         # Decode without verification first to check structure
@@ -17,7 +17,10 @@ def verify_token(token):
         
         # Verify issuer matches Supabase
         if unverified.get('iss') != 'supabase':
-            abort(401)
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid token issuer"
+            )
         
         # If we have JWT secret, verify signature
         if SUPABASE_JWT_SECRET:
@@ -34,35 +37,40 @@ def verify_token(token):
         
         return payload
     except jwt.InvalidTokenError as e:
-        print(f"Token verification failed: {e}")
-        abort(401)
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=f"Token verification failed: {str(e)}"
+        )
     except Exception as e:
-        print(f"Token verification error: {e}")
-        abort(401)
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=f"Token verification error: {str(e)}"
+        )
 
-def require_auth(roles=None):
-    """Decorator to require authentication and optionally specific roles"""
-    roles = roles or []
+def get_current_user(authorization: str = Header(...)) -> Dict[str, Any]:
+    """Dependency to get current authenticated user"""
+    if not authorization.startswith("Bearer "):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid authorization header format"
+        )
     
-    def decorator(fn):
-        @wraps(fn)
-        def wrapper(*args, **kwargs):
-            auth = request.headers.get("Authorization", "")
-            if not auth.startswith("Bearer "):
-                abort(401)
-            
-            token = auth.split(" ", 1)[1]
-            payload = verify_token(token)
-            
-            # Extract role from user_metadata
-            role = payload.get("user_metadata", {}).get("role", "user")
-            
-            if roles and role not in roles:
-                abort(403)
-            
-            # Attach user info to request
-            request.user = payload
-            return fn(*args, **kwargs)
-        return wrapper
-    return decorator
+    token = authorization.split(" ", 1)[1]
+    payload = verify_token(token)
+    return payload
 
+def require_auth(roles: Optional[list] = None):
+    """Dependency factory for role-based access control"""
+    def get_authenticated_user(
+        current_user: Dict[str, Any] = Depends(get_current_user)
+    ) -> Dict[str, Any]:
+        if roles:
+            user_role = current_user.get("user_metadata", {}).get("role", "user")
+            if user_role not in roles:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Insufficient permissions"
+                )
+        return current_user
+    
+    return get_authenticated_user

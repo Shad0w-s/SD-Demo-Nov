@@ -1,198 +1,150 @@
-from flask import Blueprint, jsonify, request, abort
-from auth import require_auth
-from models import SessionLocal, DroneBase
+from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
+from typing import List
 import uuid
 
-bp = Blueprint('bases', __name__)
+from dependencies import get_db
+from auth import get_current_user
+from models import DroneBase, Drone
+from schemas import BaseCreate, BaseUpdate, BaseResponse
 
-@bp.route('/bases', methods=['GET'])
-@require_auth()
-def get_bases():
+router = APIRouter()
+
+@router.get("/bases", response_model=List[BaseResponse])
+def get_bases(
+    current_user: dict = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
     """Get all bases"""
-    session = SessionLocal()
-    
-    try:
-        bases = session.query(DroneBase).all()
-        return jsonify([{
-            'id': str(b.id),
-            'name': b.name,
-            'lat': b.lat,
-            'lng': b.lng,
-            'created_at': b.created_at.isoformat() if b.created_at else None
-        } for b in bases])
-    except Exception as e:
-        session.rollback()
-        return jsonify({'error': str(e)}), 500
-    finally:
-        session.close()
+    bases = db.query(DroneBase).all()
+    return bases
 
-@bp.route('/bases/<base_id>', methods=['GET'])
-@require_auth()
-def get_base(base_id):
+@router.get("/bases/{base_id}", response_model=BaseResponse)
+def get_base(
+    base_id: str,
+    current_user: dict = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
     """Get a single base by ID"""
-    session = SessionLocal()
-    
     try:
-        try:
-            base_uuid = uuid.UUID(base_id)
-        except ValueError:
-            abort(400, description="Invalid base ID format")
-        
-        base = session.query(DroneBase).filter(DroneBase.id == base_uuid).first()
-        
-        if not base:
-            abort(404, description="Base not found")
-        
-        return jsonify({
-            'id': str(base.id),
-            'name': base.name,
-            'lat': base.lat,
-            'lng': base.lng,
-            'created_at': base.created_at.isoformat() if base.created_at else None
-        })
-    except Exception as e:
-        if hasattr(e, 'code'):
-            raise
-        return jsonify({'error': str(e)}), 500
-    finally:
-        session.close()
-
-@bp.route('/bases', methods=['POST'])
-@require_auth()
-def create_base():
-    """Create a new base"""
-    data = request.json
-    session = SessionLocal()
-    
-    try:
-        if not data or 'name' not in data:
-            abort(400, description="Name is required")
-        
-        if 'lat' not in data or 'lng' not in data:
-            abort(400, description="Latitude and longitude are required")
-        
-        try:
-            lat = float(data['lat'])
-            lng = float(data['lng'])
-        except (ValueError, TypeError):
-            abort(400, description="Invalid latitude or longitude format")
-        
-        # Validate coordinates
-        if not (-90 <= lat <= 90):
-            abort(400, description="Latitude must be between -90 and 90")
-        if not (-180 <= lng <= 180):
-            abort(400, description="Longitude must be between -180 and 180")
-        
-        base = DroneBase(
-            name=data['name'],
-            lat=lat,
-            lng=lng
+        base_uuid = uuid.UUID(base_id)
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid base ID format"
         )
-        session.add(base)
-        session.commit()
-        
-        return jsonify({
-            'id': str(base.id),
-            'name': base.name,
-            'lat': base.lat,
-            'lng': base.lng,
-            'created_at': base.created_at.isoformat() if base.created_at else None
-        }), 201
-    except IntegrityError as e:
-        session.rollback()
-        return jsonify({'error': 'Database integrity error'}), 400
-    except Exception as e:
-        session.rollback()
-        if hasattr(e, 'code'):
-            raise
-        return jsonify({'error': str(e)}), 500
-    finally:
-        session.close()
+    
+    base = db.query(DroneBase).filter(DroneBase.id == base_uuid).first()
+    
+    if not base:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Base not found"
+        )
+    
+    return base
 
-@bp.route('/bases/<base_id>', methods=['PUT'])
-@require_auth()
-def update_base(base_id):
+@router.post("/bases", response_model=BaseResponse, status_code=status.HTTP_201_CREATED)
+def create_base(
+    base_data: BaseCreate,
+    current_user: dict = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Create a new base"""
+    try:
+        base = DroneBase(
+            name=base_data.name,
+            lat=base_data.lat,
+            lng=base_data.lng
+        )
+        db.add(base)
+        db.commit()
+        db.refresh(base)
+        return base
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Database integrity error"
+        )
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=str(e)
+        )
+
+@router.put("/bases/{base_id}", response_model=BaseResponse)
+def update_base(
+    base_id: str,
+    base_data: BaseUpdate,
+    current_user: dict = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
     """Update a base"""
-    data = request.json
-    session = SessionLocal()
-    
     try:
-        try:
-            base_uuid = uuid.UUID(base_id)
-        except ValueError:
-            abort(400, description="Invalid base ID format")
+        base_uuid = uuid.UUID(base_id)
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid base ID format"
+        )
+    
+    base = db.query(DroneBase).filter(DroneBase.id == base_uuid).first()
+    
+    if not base:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Base not found"
+        )
+    
+    # Update fields
+    if base_data.name is not None:
+        base.name = base_data.name
+    
+    if base_data.lat is not None or base_data.lng is not None:
+        lat = base_data.lat if base_data.lat is not None else base.lat
+        lng = base_data.lng if base_data.lng is not None else base.lng
         
-        base = session.query(DroneBase).filter(DroneBase.id == base_uuid).first()
-        
-        if not base:
-            abort(404, description="Base not found")
-        
-        # Update fields
-        if 'name' in data:
-            base.name = data['name']
-        
-        if 'lat' in data or 'lng' in data:
-            lat = float(data.get('lat', base.lat))
-            lng = float(data.get('lng', base.lng))
-            
-            if not (-90 <= lat <= 90):
-                abort(400, description="Latitude must be between -90 and 90")
-            if not (-180 <= lng <= 180):
-                abort(400, description="Longitude must be between -180 and 180")
-            
-            base.lat = lat
-            base.lng = lng
-        
-        session.commit()
-        
-        return jsonify({
-            'id': str(base.id),
-            'name': base.name,
-            'lat': base.lat,
-            'lng': base.lng,
-            'updated_at': base.updated_at.isoformat() if base.updated_at else None
-        })
-    except Exception as e:
-        session.rollback()
-        if hasattr(e, 'code'):
-            raise
-        return jsonify({'error': str(e)}), 500
-    finally:
-        session.close()
+        base.lat = lat
+        base.lng = lng
+    
+    db.commit()
+    db.refresh(base)
+    return base
 
-@bp.route('/bases/<base_id>', methods=['DELETE'])
-@require_auth()
-def delete_base(base_id):
+@router.delete("/bases/{base_id}")
+def delete_base(
+    base_id: str,
+    current_user: dict = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
     """Delete a base"""
-    session = SessionLocal()
-    
     try:
-        try:
-            base_uuid = uuid.UUID(base_id)
-        except ValueError:
-            abort(400, description="Invalid base ID format")
-        
-        base = session.query(DroneBase).filter(DroneBase.id == base_uuid).first()
-        
-        if not base:
-            abort(404, description="Base not found")
-        
-        # Check if base has drones assigned
-        from models import Drone
-        drone_count = session.query(Drone).filter(Drone.base_id == base_uuid).count()
-        if drone_count > 0:
-            abort(400, description=f"Cannot delete base: {drone_count} drone(s) are assigned to it")
-        
-        session.delete(base)
-        session.commit()
-        
-        return jsonify({'message': 'Base deleted successfully'}), 200
-    except Exception as e:
-        session.rollback()
-        if hasattr(e, 'code'):
-            raise
-        return jsonify({'error': str(e)}), 500
-    finally:
-        session.close()
-
+        base_uuid = uuid.UUID(base_id)
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid base ID format"
+        )
+    
+    base = db.query(DroneBase).filter(DroneBase.id == base_uuid).first()
+    
+    if not base:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Base not found"
+        )
+    
+    # Check if base has drones assigned
+    drone_count = db.query(Drone).filter(Drone.base_id == base_uuid).count()
+    if drone_count > 0:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Cannot delete base: {drone_count} drone(s) are assigned to it"
+        )
+    
+    db.delete(base)
+    db.commit()
+    return {"message": "Base deleted successfully"}

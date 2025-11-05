@@ -5,8 +5,17 @@
   border: none !important;
 }
 
-/* Leaflet map container */
+/* Leaflet map container (fallback) */
 .leaflet-container {
+  border-radius: 16px;
+}
+
+/* ArcGIS map container (primary) */
+.esri-view {
+  border-radius: 16px;
+}
+
+.esri-view-root {
   border-radius: 16px;
 }
 

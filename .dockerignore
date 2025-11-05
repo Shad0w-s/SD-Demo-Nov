@@ -1,0 +1,17 @@
+node_modules
+.next
+.env
+.env.local
+.env.production
+.git
+.gitignore
+README.md
+*.md
+backend/__pycache__
+backend/.pytest_cache
+backend/venv
+.pytest_cache
+coverage
+.vscode
+.idea
+

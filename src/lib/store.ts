@@ -38,6 +38,7 @@ interface SimulationState {
     heading_deg: number
     signal_strength: number
   }
+  currentPosition?: [number, number]
 }
 
 interface AppState {

@@ -1,0 +1,55 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: droneuser
+      POSTGRES_PASSWORD: dronepassword
+      POSTGRES_DB: dronedb
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U droneuser"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: backend
+    environment:
+      DATABASE_URL: postgresql://droneuser:dronepassword@postgres:5432/dronedb
+      SUPABASE_PROJECT_URL: ${SUPABASE_PROJECT_URL}
+      SUPABASE_SERVICE_ROLE: ${SUPABASE_SERVICE_ROLE}
+      SUPABASE_JWT_SECRET: ${SUPABASE_JWT_SECRET}
+    ports:
+      - "5000:5000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./backend:/app
+
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: frontend
+    environment:
+      NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL}
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ${NEXT_PUBLIC_SUPABASE_ANON_KEY}
+      NEXT_PUBLIC_API_BASE_URL: http://backend:5000
+      NEXT_PUBLIC_ARCGIS_API_KEY: ${NEXT_PUBLIC_ARCGIS_API_KEY}
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+
+volumes:
+  postgres_data:
+

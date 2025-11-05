@@ -1,5 +1,8 @@
 import type { Metadata } from 'next'
 import '../styles/globals.css'
+// ArcGIS CSS (primary)
+import '@arcgis/core/assets/esri/themes/light/main.css'
+// Leaflet CSS (fallback)
 import 'leaflet/dist/leaflet.css'
 import { MUIThemeProviderWrapper } from '@/lib/mui-theme'
 

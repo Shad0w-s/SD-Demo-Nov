@@ -1,6 +1,6 @@
 # 🚁 Drone Management System (MVP)
 
-A web-based Drone Management System for internal testing, built with Next.js, Flask, and Supabase.
+A web-based Drone Management System for internal testing, built with Next.js, FastAPI, and Supabase.
 
 ## 📋 Project Structure
 
@@ -11,11 +11,13 @@ SD-Demo-Nov/
 │   ├── components/        # React components
 │   ├── lib/              # Utilities and clients
 │   └── styles/           # Global styles
-├── backend/              # Flask API
+├── backend/              # FastAPI backend
 │   ├── routes/           # API route handlers
-│   ├── app.py           # Flask app entry
+│   ├── app.py           # FastAPI app entry
 │   ├── auth.py          # JWT authentication
-│   └── models.py        # SQLAlchemy models
+│   ├── models.py        # SQLAlchemy models
+│   ├── schemas.py       # Pydantic models
+│   └── dependencies.py  # Dependency injection
 ```
 
 ## 🚀 Quick Start
@@ -40,17 +42,12 @@ cp env.example .env.local
 
 3. Update `.env.local` with your Supabase credentials
 
-4. Run development server:
-```bash
-npm run dev
-```
-
 ### Backend Setup
 
-1. Create virtual environment:
+1. Create virtual environment (if not exists):
 ```bash
 cd backend
-python -m venv venv
+python3 -m venv venv
 source venv/bin/activate  # On Windows: venv\Scripts\activate
 ```
 
@@ -66,10 +63,44 @@ cp env.example .env
 
 4. Update `.env` with your Supabase and database credentials
 
-5. Run Flask server:
+## 🎯 Running the Application
+
+### Option 1: Run Both Simultaneously (Recommended)
+
+**Using npm script:**
 ```bash
-python app.py
+npm run dev:all
 ```
+
+**Using shell script:**
+```bash
+./start.sh
+```
+
+### Option 2: Run Separately
+
+**Terminal 1 - Backend:**
+```bash
+npm run dev:backend
+# Or manually:
+cd backend
+source venv/bin/activate
+uvicorn app:app --reload --port 5000
+```
+
+**Terminal 2 - Frontend:**
+```bash
+npm run dev
+# Or:
+npm run dev:frontend
+```
+
+## 📍 Access Points
+
+- **Frontend**: http://localhost:3000
+- **Backend API**: http://localhost:5000
+- **API Documentation**: http://localhost:5000/docs
+- **Alternative API Docs**: http://localhost:5000/redoc
 
 ## 📚 Documentation
 
@@ -77,11 +108,12 @@ See `env.example` and `backend/env.example` for environment variable setup.
 
 ## 🛠️ Tech Stack
 
-- **Frontend**: Next.js 14 (App Router), Material UI, Leaflet/OpenStreetMap
-- **Backend**: Flask, SQLAlchemy, PostgreSQL
+- **Frontend**: Next.js 14 (App Router), Material UI, ArcGIS Maps SDK
+- **Backend**: FastAPI, SQLAlchemy, PostgreSQL
 - **Auth**: Supabase Auth (JWT)
 - **State Management**: Zustand
-- **Mapping**: Leaflet with OpenStreetMap (free, no API key required)
+- **Mapping**: ArcGIS Maps SDK for JavaScript (with OSM/Leaflet fallback)
+- **API Docs**: FastAPI automatically generates OpenAPI/Swagger documentation at `/docs`
 
 ## 📝 License
 

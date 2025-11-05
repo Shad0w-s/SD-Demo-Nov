@@ -1,381 +1,345 @@
-from flask import Blueprint, jsonify, request, abort
-from auth import require_auth
-from models import SessionLocal, Drone, DroneBase
+from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
+from typing import List
 import uuid
+import random
+import math
+from datetime import datetime
 
-bp = Blueprint('drones', __name__)
+from dependencies import get_db
+from auth import get_current_user
+from models import Drone, DroneBase
+from schemas import (
+    DroneCreate, DroneUpdate, DroneResponse,
+    SimulatePathRequest, SimulatePathResponse, TelemetryResponse,
+    DroneActionRequest
+)
 
-@bp.route('/drones', methods=['GET'])
-@require_auth()
-def get_drones():
+router = APIRouter()
+
+@router.get("/drones", response_model=List[DroneResponse])
+def get_drones(
+    current_user: dict = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
     """Get all drones (user sees own, admin sees all)"""
-    user = request.user
-    session = SessionLocal()
+    user_id = current_user.get('sub')
+    role = current_user.get('user_metadata', {}).get('role', 'user')
     
-    try:
-        user_id = user.get('sub')
-        role = user.get('user_metadata', {}).get('role', 'user')
-        
-        if role == 'admin':
-            drones = session.query(Drone).all()
-        else:
-            drones = session.query(Drone).filter(Drone.user_id == user_id).all()
-        
-        return jsonify([{
-            'id': str(d.id),
-            'name': d.name,
-            'model': d.model,
-            'status': d.status,
-            'base_id': str(d.base_id) if d.base_id else None,
-            'user_id': str(d.user_id),
-            'last_check_in': d.last_check_in.isoformat() if d.last_check_in else None,
-            'created_at': d.created_at.isoformat() if d.created_at else None
-        } for d in drones])
-    except Exception as e:
-        session.rollback()
-        return jsonify({'error': str(e)}), 500
-    finally:
-        session.close()
+    if role == 'admin':
+        drones = db.query(Drone).all()
+    else:
+        drones = db.query(Drone).filter(Drone.user_id == user_id).all()
+    
+    return drones
 
-@bp.route('/drones/<drone_id>', methods=['GET'])
-@require_auth()
-def get_drone(drone_id):
+@router.get("/drones/{drone_id}", response_model=DroneResponse)
+def get_drone(
+    drone_id: str,
+    current_user: dict = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
     """Get a single drone by ID"""
-    user = request.user
-    session = SessionLocal()
-    
     try:
-        user_id = user.get('sub')
-        role = user.get('user_metadata', {}).get('role', 'user')
-        
-        try:
-            drone_uuid = uuid.UUID(drone_id)
-        except ValueError:
-            abort(400, description="Invalid drone ID format")
-        
-        drone = session.query(Drone).filter(Drone.id == drone_uuid).first()
-        
-        if not drone:
-            abort(404, description="Drone not found")
-        
-        # Check authorization
-        if role != 'admin' and str(drone.user_id) != user_id:
-            abort(403, description="Access denied")
-        
-        return jsonify({
-            'id': str(drone.id),
-            'name': drone.name,
-            'model': drone.model,
-            'status': drone.status,
-            'base_id': str(drone.base_id) if drone.base_id else None,
-            'user_id': str(drone.user_id),
-            'last_check_in': drone.last_check_in.isoformat() if drone.last_check_in else None,
-            'created_at': drone.created_at.isoformat() if drone.created_at else None
-        })
-    except Exception as e:
-        session.rollback()
-        if hasattr(e, 'code'):
-            raise
-        return jsonify({'error': str(e)}), 500
-    finally:
-        session.close()
+        drone_uuid = uuid.UUID(drone_id)
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid drone ID format"
+        )
+    
+    user_id = current_user.get('sub')
+    role = current_user.get('user_metadata', {}).get('role', 'user')
+    
+    drone = db.query(Drone).filter(Drone.id == drone_uuid).first()
+    
+    if not drone:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Drone not found"
+        )
+    
+    # Check authorization
+    if role != 'admin' and str(drone.user_id) != user_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Access denied"
+        )
+    
+    return drone
 
-@bp.route('/drones', methods=['POST'])
-@require_auth()
-def create_drone():
+@router.post("/drones", response_model=DroneResponse, status_code=status.HTTP_201_CREATED)
+def create_drone(
+    drone_data: DroneCreate,
+    current_user: dict = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
     """Create a new drone"""
-    data = request.json
-    user = request.user
-    session = SessionLocal()
-    
     try:
-        if not data or 'name' not in data:
-            abort(400, description="Name is required")
-        
         # Validate base_id if provided
         base_id = None
-        if data.get('base_id'):
-            try:
-                base_uuid = uuid.UUID(data['base_id'])
-                base = session.query(DroneBase).filter(DroneBase.id == base_uuid).first()
-                if not base:
-                    abort(404, description="Base not found")
-                base_id = base_uuid
-            except ValueError:
-                abort(400, description="Invalid base ID format")
+        if drone_data.base_id:
+            base = db.query(DroneBase).filter(DroneBase.id == drone_data.base_id).first()
+            if not base:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="Base not found"
+                )
+            base_id = drone_data.base_id
         
         drone = Drone(
-            name=data['name'],
-            model=data.get('model'),
-            user_id=uuid.UUID(user.get('sub')),
+            name=drone_data.name,
+            model=drone_data.model,
+            user_id=uuid.UUID(current_user.get('sub')),
             base_id=base_id,
-            status=data.get('status', 'simulated')
+            status=drone_data.status or 'simulated'
         )
-        session.add(drone)
-        session.commit()
-        
-        return jsonify({
-            'id': str(drone.id),
-            'name': drone.name,
-            'model': drone.model,
-            'status': drone.status,
-            'base_id': str(drone.base_id) if drone.base_id else None,
-            'user_id': str(drone.user_id),
-            'created_at': drone.created_at.isoformat() if drone.created_at else None
-        }), 201
-    except IntegrityError as e:
-        session.rollback()
-        return jsonify({'error': 'Database integrity error'}), 400
+        db.add(drone)
+        db.commit()
+        db.refresh(drone)
+        return drone
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Database integrity error"
+        )
     except Exception as e:
-        session.rollback()
-        if hasattr(e, 'code'):
-            raise
-        return jsonify({'error': str(e)}), 500
-    finally:
-        session.close()
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=str(e)
+        )
 
-@bp.route('/drones/<drone_id>', methods=['PUT'])
-@require_auth()
-def update_drone(drone_id):
+@router.put("/drones/{drone_id}", response_model=DroneResponse)
+def update_drone(
+    drone_id: str,
+    drone_data: DroneUpdate,
+    current_user: dict = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
     """Update a drone"""
-    data = request.json
-    user = request.user
-    session = SessionLocal()
-    
     try:
-        user_id = user.get('sub')
-        role = user.get('user_metadata', {}).get('role', 'user')
-        
-        try:
-            drone_uuid = uuid.UUID(drone_id)
-        except ValueError:
-            abort(400, description="Invalid drone ID format")
-        
-        drone = session.query(Drone).filter(Drone.id == drone_uuid).first()
-        
-        if not drone:
-            abort(404, description="Drone not found")
-        
-        # Check authorization
-        if role != 'admin' and str(drone.user_id) != user_id:
-            abort(403, description="Access denied")
-        
-        # Update fields
-        if 'name' in data:
-            drone.name = data['name']
-        if 'model' in data:
-            drone.model = data['model']
-        if 'status' in data:
-            drone.status = data['status']
-        if 'base_id' in data:
-            if data['base_id']:
-                try:
-                    base_uuid = uuid.UUID(data['base_id'])
-                    base = session.query(DroneBase).filter(DroneBase.id == base_uuid).first()
-                    if not base:
-                        abort(404, description="Base not found")
-                    drone.base_id = base_uuid
-                except ValueError:
-                    abort(400, description="Invalid base ID format")
-            else:
-                drone.base_id = None
-        
-        session.commit()
-        
-        return jsonify({
-            'id': str(drone.id),
-            'name': drone.name,
-            'model': drone.model,
-            'status': drone.status,
-            'base_id': str(drone.base_id) if drone.base_id else None,
-            'user_id': str(drone.user_id),
-            'updated_at': drone.updated_at.isoformat() if drone.updated_at else None
-        })
-    except Exception as e:
-        session.rollback()
-        if hasattr(e, 'code'):
-            raise
-        return jsonify({'error': str(e)}), 500
-    finally:
-        session.close()
+        drone_uuid = uuid.UUID(drone_id)
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid drone ID format"
+        )
+    
+    user_id = current_user.get('sub')
+    role = current_user.get('user_metadata', {}).get('role', 'user')
+    
+    drone = db.query(Drone).filter(Drone.id == drone_uuid).first()
+    
+    if not drone:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Drone not found"
+        )
+    
+    # Check authorization
+    if role != 'admin' and str(drone.user_id) != user_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Access denied"
+        )
+    
+    # Update fields
+    if drone_data.name is not None:
+        drone.name = drone_data.name
+    if drone_data.model is not None:
+        drone.model = drone_data.model
+    if drone_data.status is not None:
+        drone.status = drone_data.status
+    if drone_data.base_id is not None:
+        if drone_data.base_id:
+            base = db.query(DroneBase).filter(DroneBase.id == drone_data.base_id).first()
+            if not base:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="Base not found"
+                )
+            drone.base_id = drone_data.base_id
+        else:
+            drone.base_id = None
+    
+    db.commit()
+    db.refresh(drone)
+    return drone
 
-@bp.route('/drones/<drone_id>', methods=['DELETE'])
-@require_auth()
-def delete_drone(drone_id):
+@router.delete("/drones/{drone_id}")
+def delete_drone(
+    drone_id: str,
+    current_user: dict = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
     """Delete a drone"""
-    user = request.user
-    session = SessionLocal()
-    
     try:
-        user_id = user.get('sub')
-        role = user.get('user_metadata', {}).get('role', 'user')
-        
-        try:
-            drone_uuid = uuid.UUID(drone_id)
-        except ValueError:
-            abort(400, description="Invalid drone ID format")
-        
-        drone = session.query(Drone).filter(Drone.id == drone_uuid).first()
-        
-        if not drone:
-            abort(404, description="Drone not found")
-        
-        # Check authorization
-        if role != 'admin' and str(drone.user_id) != user_id:
-            abort(403, description="Access denied")
-        
-        session.delete(drone)
-        session.commit()
-        
-        return jsonify({'message': 'Drone deleted successfully'}), 200
-    except Exception as e:
-        session.rollback()
-        if hasattr(e, 'code'):
-            raise
-        return jsonify({'error': str(e)}), 500
-    finally:
-        session.close()
+        drone_uuid = uuid.UUID(drone_id)
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid drone ID format"
+        )
+    
+    user_id = current_user.get('sub')
+    role = current_user.get('user_metadata', {}).get('role', 'user')
+    
+    drone = db.query(Drone).filter(Drone.id == drone_uuid).first()
+    
+    if not drone:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Drone not found"
+        )
+    
+    # Check authorization
+    if role != 'admin' and str(drone.user_id) != user_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Access denied"
+        )
+    
+    db.delete(drone)
+    db.commit()
+    return {"message": "Drone deleted successfully"}
 
-@bp.route('/drones/<drone_id>/simulate_path', methods=['POST'])
-@require_auth()
-def simulate_path(drone_id):
+@router.post("/drones/{drone_id}/simulate_path", response_model=SimulatePathResponse)
+def simulate_path(
+    drone_id: str,
+    path_request: SimulatePathRequest,
+    current_user: dict = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
     """Return mock drone path for simulation"""
-    user = request.user
-    session = SessionLocal()
-    
     try:
-        try:
-            drone_uuid = uuid.UUID(drone_id)
-        except ValueError:
-            abort(400, description="Invalid drone ID format")
-        
-        drone = session.query(Drone).filter(Drone.id == drone_uuid).first()
-        
-        if not drone:
-            abort(404, description="Drone not found")
-        
-        # Check authorization
-        user_id = user.get('sub')
-        role = user.get('user_metadata', {}).get('role', 'user')
-        if role != 'admin' and str(drone.user_id) != user_id:
-            abort(403, description="Access denied")
-        
-        path_data = request.json.get('path', []) if request.json else []
-        
-        # Generate mock telemetry data
-        import random
-        import math
-        
-        # If no path provided, generate a default path
-        if not path_data:
-            # Default path: small square around San Francisco
-            base_lng, base_lat = -122.4, 37.79
-            path_data = [
-                [base_lng, base_lat],
-                [base_lng + 0.01, base_lat],
-                [base_lng + 0.01, base_lat + 0.01],
-                [base_lng, base_lat + 0.01],
-                [base_lng, base_lat]
-            ]
-        
-        # Calculate distance and ETA
-        total_distance = 0
-        for i in range(len(path_data) - 1):
-            lat1, lng1 = path_data[i][1], path_data[i][0]
-            lat2, lng2 = path_data[i+1][1], path_data[i+1][0]
-            # Haversine distance approximation
-            distance = math.sqrt((lat2-lat1)**2 + (lng2-lng1)**2) * 111000  # meters
-            total_distance += distance
-        
-        speed_mps = random.uniform(10, 15)  # 10-15 m/s
-        eta_seconds = int(total_distance / speed_mps) if speed_mps > 0 else 0
-        
-        # Generate mock telemetry
-        telemetry = {
-            'battery_level': random.randint(60, 100),
-            'altitude_m': random.uniform(50, 150),
-            'heading_deg': random.uniform(0, 360),
-            'signal_strength': random.randint(70, 100)
-        }
-        
-        return jsonify({
-            'path': {
-                'coordinates': path_data
-            },
-            'speed_mps': round(speed_mps, 2),
-            'eta_seconds': eta_seconds,
-            'distance_m': round(total_distance, 2),
-            'telemetry': telemetry
-        })
-    except Exception as e:
-        if hasattr(e, 'code'):
-            raise
-        return jsonify({'error': str(e)}), 500
-    finally:
-        session.close()
+        drone_uuid = uuid.UUID(drone_id)
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid drone ID format"
+        )
+    
+    drone = db.query(Drone).filter(Drone.id == drone_uuid).first()
+    
+    if not drone:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Drone not found"
+        )
+    
+    # Check authorization
+    user_id = current_user.get('sub')
+    role = current_user.get('user_metadata', {}).get('role', 'user')
+    if role != 'admin' and str(drone.user_id) != user_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Access denied"
+        )
+    
+    path_data = path_request.path or []
+    
+    # If no path provided, generate a default path
+    if not path_data:
+        base_lng, base_lat = -122.4, 37.79
+        path_data = [
+            [base_lng, base_lat],
+            [base_lng + 0.01, base_lat],
+            [base_lng + 0.01, base_lat + 0.01],
+            [base_lng, base_lat + 0.01],
+            [base_lng, base_lat]
+        ]
+    
+    # Calculate distance and ETA
+    total_distance = 0
+    for i in range(len(path_data) - 1):
+        lat1, lng1 = path_data[i][1], path_data[i][0]
+        lat2, lng2 = path_data[i+1][1], path_data[i+1][0]
+        # Haversine distance approximation
+        distance = math.sqrt((lat2-lat1)**2 + (lng2-lng1)**2) * 111000  # meters
+        total_distance += distance
+    
+    speed_mps = random.uniform(10, 15)  # 10-15 m/s
+    eta_seconds = int(total_distance / speed_mps) if speed_mps > 0 else 0
+    
+    # Generate mock telemetry
+    telemetry = TelemetryResponse(
+        battery_level=float(random.randint(60, 100)),
+        altitude_m=random.uniform(50, 150),
+        heading_deg=random.uniform(0, 360),
+        signal_strength=float(random.randint(70, 100))
+    )
+    
+    return SimulatePathResponse(
+        speed_mps=round(speed_mps, 2),
+        eta_seconds=eta_seconds,
+        distance_m=round(total_distance, 2),
+        telemetry=telemetry
+    )
 
-@bp.route('/drones/<drone_id>/action', methods=['POST'])
-@require_auth()
-def drone_action(drone_id):
+@router.post("/drones/{drone_id}/action")
+def drone_action(
+    drone_id: str,
+    action_request: DroneActionRequest,
+    current_user: dict = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
     """Trigger simulated drone action"""
-    user = request.user
-    session = SessionLocal()
-    
     try:
-        try:
-            drone_uuid = uuid.UUID(drone_id)
-        except ValueError:
-            abort(400, description="Invalid drone ID format")
-        
-        drone = session.query(Drone).filter(Drone.id == drone_uuid).first()
-        
-        if not drone:
-            abort(404, description="Drone not found")
-        
-        # Check authorization
-        user_id = user.get('sub')
-        role = user.get('user_metadata', {}).get('role', 'user')
-        if role != 'admin' and str(drone.user_id) != user_id:
-            abort(403, description="Access denied")
-        
-        if not request.json or 'action' not in request.json:
-            abort(400, description="Action is required")
-        
-        action = request.json.get('action')
-        valid_actions = ['return_to_base', 'intercept', 'end_early', 'pause', 'resume']
-        
-        if action not in valid_actions:
-            abort(400, description=f"Invalid action. Valid actions: {', '.join(valid_actions)}")
-        
-        # Update drone status based on action
-        if action == 'return_to_base':
-            drone.status = 'returning'
-        elif action == 'intercept':
-            drone.status = 'intercepting'
-        elif action == 'end_early':
-            drone.status = 'completed'
-        elif action == 'pause':
-            drone.status = 'paused'
-        elif action == 'resume':
-            drone.status = 'active'
-        
-        from datetime import datetime
-        drone.last_check_in = datetime.utcnow()
-        session.commit()
-        
-        return jsonify({
-            'status': 'success',
-            'action': action,
-            'drone_id': drone_id,
-            'drone_status': drone.status,
-            'message': f'Action {action} executed for drone {drone_id}'
-        })
-    except Exception as e:
-        session.rollback()
-        if hasattr(e, 'code'):
-            raise
-        return jsonify({'error': str(e)}), 500
-    finally:
-        session.close()
-
+        drone_uuid = uuid.UUID(drone_id)
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid drone ID format"
+        )
+    
+    drone = db.query(Drone).filter(Drone.id == drone_uuid).first()
+    
+    if not drone:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Drone not found"
+        )
+    
+    # Check authorization
+    user_id = current_user.get('sub')
+    role = current_user.get('user_metadata', {}).get('role', 'user')
+    if role != 'admin' and str(drone.user_id) != user_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Access denied"
+        )
+    
+    action = action_request.action
+    valid_actions = ['return_to_base', 'intercept', 'end_early', 'pause', 'resume']
+    
+    if action not in valid_actions:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid action. Valid actions: {', '.join(valid_actions)}"
+        )
+    
+    # Update drone status based on action
+    if action == 'return_to_base':
+        drone.status = 'returning'
+    elif action == 'intercept':
+        drone.status = 'intercepting'
+    elif action == 'end_early':
+        drone.status = 'completed'
+    elif action == 'pause':
+        drone.status = 'paused'
+    elif action == 'resume':
+        drone.status = 'active'
+    
+    drone.last_check_in = datetime.utcnow()
+    db.commit()
+    
+    return {
+        'status': 'success',
+        'action': action,
+        'drone_id': drone_id,
+        'drone_status': drone.status,
+        'message': f'Action {action} executed for drone {drone_id}'
+    }

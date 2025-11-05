@@ -43,15 +43,16 @@ vi.mock('@/lib/api', async () => {
 
 describe('Phase 3: Frontend Components', () => {
   describe('Theme System', () => {
-    it('should have theme context provider', async () => {
-      const { ThemeProvider, useTheme } = await import('@/lib/theme')
-      expect(ThemeProvider).toBeDefined()
-      expect(useTheme).toBeDefined()
+    it('should have Material UI theme provider', async () => {
+      const { MUIThemeProviderWrapper, useMUITheme } = await import('@/lib/mui-theme')
+      expect(MUIThemeProviderWrapper).toBeDefined()
+      expect(useMUITheme).toBeDefined()
     })
 
     it('should toggle between light and dark mode', async () => {
-      const { ThemeProvider } = await import('@/lib/theme')
-      expect(ThemeProvider).toBeDefined()
+      const { useMUITheme } = await import('@/lib/mui-theme')
+      expect(useMUITheme).toBeDefined()
+      // Theme toggle functionality is tested in ThemeToggle component
     })
   })
 
@@ -103,21 +104,40 @@ describe('Phase 3: Frontend Components', () => {
     })
   })
 
-  describe('ArcGIS Utilities', () => {
+  describe('Map Utilities', () => {
     it('should have map initialization function', async () => {
-      // Skip ArcGIS tests due to CSS import issues in test environment
-      // These functions exist and work in runtime
-      expect(true).toBe(true)
+      const mapUtils = await import('@/lib/map')
+      expect(mapUtils.initializeMap).toBeDefined()
+      expect(typeof mapUtils.initializeMap).toBe('function')
     })
 
     it('should have marker functions', async () => {
-      // ArcGIS functions are tested in runtime
-      expect(true).toBe(true)
+      const mapUtils = await import('@/lib/map')
+      expect(mapUtils.addBaseMarker).toBeDefined()
+      expect(mapUtils.addDroneMarker).toBeDefined()
+      expect(typeof mapUtils.addBaseMarker).toBe('function')
+      expect(typeof mapUtils.addDroneMarker).toBe('function')
     })
 
     it('should have path functions', async () => {
-      // ArcGIS functions are tested in runtime
-      expect(true).toBe(true)
+      const mapUtils = await import('@/lib/map')
+      expect(mapUtils.addPathToMap).toBeDefined()
+      expect(mapUtils.clearPath).toBeDefined()
+      expect(typeof mapUtils.addPathToMap).toBe('function')
+      expect(typeof mapUtils.clearPath).toBe('function')
+    })
+
+    it('should support ArcGIS as primary mapping solution', async () => {
+      const mapUtils = await import('@/lib/map')
+      expect(mapUtils.initializeMap).toBeDefined()
+      // ArcGIS is primary, OSM is fallback
+    })
+
+    it('should handle OSM fallback when ArcGIS fails', async () => {
+      // This is tested in map-arcgis.test.tsx
+      const mapUtils = await import('@/lib/map')
+      expect(mapUtils.initializeMap).toBeDefined()
+      // Fallback logic is tested in map-arcgis.test.tsx
     })
   })
 

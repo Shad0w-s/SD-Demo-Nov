@@ -9,6 +9,8 @@ import {
   FlightLand,
   Warning,
   Cancel,
+  Stop,
+  Pause,
 } from '@mui/icons-material'
 import { useAppStore } from '@/lib/store'
 import { api } from '@/lib/api'
@@ -27,6 +29,7 @@ export default function ActionBar({ onDrawingChange }: ActionBarProps) {
     setSimulation,
     setIsLoading,
     setError,
+    simulation,
   } = useAppStore()
 
   const [isScheduleOpen, setIsScheduleOpen] = useState(false)
@@ -79,6 +82,15 @@ export default function ActionBar({ onDrawingChange }: ActionBarProps) {
     }
   }
 
+  async function handleStopSimulation() {
+    setSimulation({
+      isRunning: false,
+      speed: undefined,
+      eta: undefined,
+      telemetry: undefined,
+    })
+  }
+
   async function handleAction(action: string) {
     if (!selectedDrone) {
       setError('Please select a drone first')
@@ -129,15 +141,29 @@ export default function ActionBar({ onDrawingChange }: ActionBarProps) {
           >
             Schedule Flight
           </Button>
-          <Button
-            variant="contained"
-            color="secondary"
-            startIcon={<PlayArrow />}
-            onClick={handleStartSimulation}
-            disabled={!selectedDrone || !currentPath}
-          >
-            Start Simulation
-          </Button>
+          {simulation?.isRunning ? (
+            <>
+              <Button
+                variant="contained"
+                color="error"
+                startIcon={<Stop />}
+                onClick={handleStopSimulation}
+                disabled={!selectedDrone}
+              >
+                Stop Simulation
+              </Button>
+            </>
+          ) : (
+            <Button
+              variant="contained"
+              color="secondary"
+              startIcon={<PlayArrow />}
+              onClick={handleStartSimulation}
+              disabled={!selectedDrone || !currentPath}
+            >
+              Start Simulation
+            </Button>
+          )}
           <Button
             variant="outlined"
             color="error"

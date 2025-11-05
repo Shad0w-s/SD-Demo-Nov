@@ -1,55 +1,264 @@
 'use client'
 
-import { Paper, Box, Typography, Chip, Stack } from '@mui/material'
-import { VideocamOff, Battery5Bar, Height, SignalCellularAlt } from '@mui/icons-material'
+import { useEffect, useState } from 'react'
+import {
+  Paper,
+  Box,
+  Typography,
+  Chip,
+  Stack,
+  LinearProgress,
+  Card,
+  CardContent,
+} from '@mui/material'
+import {
+  VideocamOff,
+  Battery5Bar,
+  Height,
+  SignalCellularAlt,
+  Speed,
+  Navigation,
+  Timer,
+} from '@mui/icons-material'
 import { useAppStore } from '@/lib/store'
 
 export default function VideoFeed() {
   const { selectedDrone, simulation } = useAppStore()
+  const [progress, setProgress] = useState(0)
+  const [timeRemaining, setTimeRemaining] = useState<number | null>(null)
+
+  // Update progress and time remaining during simulation
+  useEffect(() => {
+    if (!simulation?.isRunning || !simulation.eta) {
+      setProgress(0)
+      setTimeRemaining(null)
+      return
+    }
+
+    const startTime = Date.now()
+    const totalTime = simulation.eta * 1000 // Convert to milliseconds
+
+    const interval = setInterval(() => {
+      const elapsed = Date.now() - startTime
+      const currentProgress = Math.min((elapsed / totalTime) * 100, 100)
+      const remaining = Math.max(0, Math.ceil((totalTime - elapsed) / 1000))
+
+      setProgress(currentProgress)
+      setTimeRemaining(remaining)
+
+      if (currentProgress >= 100) {
+        clearInterval(interval)
+        setProgress(100)
+        setTimeRemaining(0)
+      }
+    }, 100) // Update every 100ms for smooth animation
+
+    return () => clearInterval(interval)
+  }, [simulation?.isRunning, simulation?.eta])
+
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60)
+    const secs = seconds % 60
+    return `${mins}:${secs.toString().padStart(2, '0')}`
+  }
 
   return (
     <Paper
       elevation={3}
       sx={{
-        p: 3,
-        height: 280,
+        p: 2,
         display: 'flex',
         flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'center',
         borderRadius: 2,
+        height: '100%',
       }}
     >
-      <VideocamOff sx={{ fontSize: 48, color: 'text.secondary', mb: 2 }} />
-      <Typography variant="h6" fontWeight="bold" gutterBottom>
-        Feed Not Live
-      </Typography>
-      {selectedDrone && (
-        <Typography variant="body2" color="text.secondary" gutterBottom>
-          {selectedDrone.name}
+      {/* Header */}
+      <Box sx={{ mb: 2 }}>
+        <Typography variant="h6" fontWeight="bold" gutterBottom>
+          {selectedDrone ? selectedDrone.name : 'No Drone Selected'}
         </Typography>
+        {selectedDrone && (
+          <Chip
+            label={selectedDrone.status}
+            size="small"
+            color={selectedDrone.status === 'active' ? 'success' : 'default'}
+            sx={{ mb: 1 }}
+          />
+        )}
+      </Box>
+
+      {/* Video Placeholder */}
+      <Box
+        sx={{
+          height: 180,
+          bgcolor: 'background.default',
+          borderRadius: 1,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          mb: 2,
+          border: '1px solid',
+          borderColor: 'divider',
+        }}
+      >
+        <VideocamOff sx={{ fontSize: 48, color: 'text.secondary' }} />
+      </Box>
+
+      {/* Simulation Progress */}
+      {simulation?.isRunning && (
+        <Box sx={{ mb: 2 }}>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+            <Typography variant="caption" color="text.secondary">
+              Flight Progress
+            </Typography>
+            <Typography variant="caption" fontWeight="bold">
+              {progress.toFixed(1)}%
+            </Typography>
+          </Box>
+          <LinearProgress
+            variant="determinate"
+            value={progress}
+            sx={{ height: 8, borderRadius: 1 }}
+          />
+          {timeRemaining !== null && (
+            <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: 'block' }}>
+              ETA: {formatTime(timeRemaining)}
+            </Typography>
+          )}
+        </Box>
       )}
-      {simulation?.telemetry && (
-        <Stack spacing={1} sx={{ mt: 2, width: '100%' }}>
-          <Chip
-            icon={<Battery5Bar />}
-            label={`Battery: ${simulation.telemetry.battery_level}%`}
-            size="small"
-            color="success"
-          />
-          <Chip
-            icon={<Height />}
-            label={`Altitude: ${simulation.telemetry.altitude_m.toFixed(0)}m`}
-            size="small"
-            color="info"
-          />
-          <Chip
-            icon={<SignalCellularAlt />}
-            label={`Signal: ${simulation.telemetry.signal_strength}%`}
-            size="small"
-            color="primary"
-          />
+
+      {/* Telemetry Data */}
+      {simulation?.telemetry ? (
+        <Stack spacing={1}>
+          <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+            <Card variant="outlined" sx={{ flex: '1 1 calc(50% - 4px)', minWidth: 120 }}>
+              <CardContent sx={{ p: '8px !important', '&:last-child': { pb: '8px' } }}>
+                <Stack direction="row" spacing={1} alignItems="center">
+                  <Battery5Bar sx={{ fontSize: 20, color: 'success.main' }} />
+                  <Box>
+                    <Typography variant="caption" color="text.secondary">
+                      Battery
+                    </Typography>
+                    <Typography variant="body2" fontWeight="bold">
+                      {simulation.telemetry.battery_level}%
+                    </Typography>
+                  </Box>
+                </Stack>
+              </CardContent>
+            </Card>
+
+            <Card variant="outlined" sx={{ flex: '1 1 calc(50% - 4px)', minWidth: 120 }}>
+              <CardContent sx={{ p: '8px !important', '&:last-child': { pb: '8px' } }}>
+                <Stack direction="row" spacing={1} alignItems="center">
+                  <Height sx={{ fontSize: 20, color: 'info.main' }} />
+                  <Box>
+                    <Typography variant="caption" color="text.secondary">
+                      Altitude
+                    </Typography>
+                    <Typography variant="body2" fontWeight="bold">
+                      {simulation.telemetry.altitude_m.toFixed(0)}m
+                    </Typography>
+                  </Box>
+                </Stack>
+              </CardContent>
+            </Card>
+          </Box>
+
+          <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+            <Card variant="outlined" sx={{ flex: '1 1 calc(50% - 4px)', minWidth: 120 }}>
+              <CardContent sx={{ p: '8px !important', '&:last-child': { pb: '8px' } }}>
+                <Stack direction="row" spacing={1} alignItems="center">
+                  <Speed sx={{ fontSize: 20, color: 'primary.main' }} />
+                  <Box>
+                    <Typography variant="caption" color="text.secondary">
+                      Speed
+                    </Typography>
+                    <Typography variant="body2" fontWeight="bold">
+                      {simulation.speed?.toFixed(1) || '0.0'} m/s
+                    </Typography>
+                  </Box>
+                </Stack>
+              </CardContent>
+            </Card>
+
+            <Card variant="outlined" sx={{ flex: '1 1 calc(50% - 4px)', minWidth: 120 }}>
+              <CardContent sx={{ p: '8px !important', '&:last-child': { pb: '8px' } }}>
+                <Stack direction="row" spacing={1} alignItems="center">
+                  <Navigation
+                    sx={{
+                      fontSize: 20,
+                      color: 'warning.main',
+                      transform: `rotate(${simulation.telemetry.heading_deg}deg)`,
+                    }}
+                  />
+                  <Box>
+                    <Typography variant="caption" color="text.secondary">
+                      Heading
+                    </Typography>
+                    <Typography variant="body2" fontWeight="bold">
+                      {simulation.telemetry.heading_deg.toFixed(0)}°
+                    </Typography>
+                  </Box>
+                </Stack>
+              </CardContent>
+            </Card>
+          </Box>
+
+          <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+            <Card variant="outlined" sx={{ flex: '1 1 calc(50% - 4px)', minWidth: 120 }}>
+              <CardContent sx={{ p: '8px !important', '&:last-child': { pb: '8px' } }}>
+                <Stack direction="row" spacing={1} alignItems="center">
+                  <SignalCellularAlt sx={{ fontSize: 20, color: 'success.main' }} />
+                  <Box>
+                    <Typography variant="caption" color="text.secondary">
+                      Signal
+                    </Typography>
+                    <Typography variant="body2" fontWeight="bold">
+                      {simulation.telemetry.signal_strength}%
+                    </Typography>
+                  </Box>
+                </Stack>
+              </CardContent>
+            </Card>
+
+            {simulation.eta && (
+              <Card variant="outlined" sx={{ flex: '1 1 calc(50% - 4px)', minWidth: 120 }}>
+                <CardContent sx={{ p: '8px !important', '&:last-child': { pb: '8px' } }}>
+                  <Stack direction="row" spacing={1} alignItems="center">
+                    <Timer sx={{ fontSize: 20, color: 'secondary.main' }} />
+                    <Box>
+                      <Typography variant="caption" color="text.secondary">
+                        ETA
+                      </Typography>
+                      <Typography variant="body2" fontWeight="bold">
+                        {formatTime(simulation.eta)}
+                      </Typography>
+                    </Box>
+                  </Stack>
+                </CardContent>
+              </Card>
+            )}
+          </Box>
         </Stack>
+      ) : (
+        <Box
+          sx={{
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            py: 2,
+          }}
+        >
+          <Typography variant="body2" color="text.secondary" align="center">
+            No telemetry data available
+          </Typography>
+          <Typography variant="caption" color="text.secondary" align="center" sx={{ mt: 1 }}>
+            Start a simulation to view telemetry
+          </Typography>
+        </Box>
       )}
     </Paper>
   )

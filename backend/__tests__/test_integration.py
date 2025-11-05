@@ -1,81 +1,53 @@
 """
-Integration tests for Phase 2 API endpoints
-Simplified tests that can run without full database setup
+Integration tests for FastAPI endpoints
+Tests that verify endpoint integration and authentication flow
 
 Run with: pytest backend/__tests__/test_integration.py -v
 """
 import pytest
-from unittest.mock import patch, MagicMock
-import json
+from fastapi.testclient import TestClient
+import sys
+import os
 
-# Mock the database models
-@pytest.fixture
-def mock_session():
-    """Mock database session"""
-    return MagicMock()
+# Add backend directory to path
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-@pytest.fixture
-def mock_user():
-    """Mock user token"""
-    return {
-        'sub': 'test-user-123',
-        'email': 'test@example.com',
-        'user_metadata': {'role': 'user'}
-    }
+from app import app
 
-@pytest.fixture
-def mock_admin():
-    """Mock admin token"""
-    return {
-        'sub': 'admin-user-123',
-        'email': 'admin@example.com',
-        'user_metadata': {'role': 'admin'}
-    }
+client = TestClient(app)
 
 class TestEndpointStructure:
     """Test that endpoints exist and have correct structure"""
     
-    def test_drones_endpoints_exist(self):
-        """Verify drone endpoints are defined"""
-        import sys
-        import os
-        sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    def test_drones_router_exists(self):
+        """Verify drone router is defined"""
         from routes import drones
-        assert hasattr(drones, 'bp')
-        assert drones.bp is not None
+        assert hasattr(drones, 'router')
+        assert drones.router is not None
     
-    def test_bases_endpoints_exist(self):
-        """Verify base endpoints are defined"""
-        import sys
-        import os
-        sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    def test_bases_router_exists(self):
+        """Verify base router is defined"""
         from routes import bases
-        assert hasattr(bases, 'bp')
+        assert hasattr(bases, 'router')
+        assert bases.router is not None
     
-    def test_schedules_endpoints_exist(self):
-        """Verify schedule endpoints are defined"""
-        import sys
-        import os
-        sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    def test_schedules_router_exists(self):
+        """Verify schedule router is defined"""
         from routes import schedules
-        assert hasattr(schedules, 'bp')
+        assert hasattr(schedules, 'router')
+        assert schedules.router is not None
     
-    def test_admin_endpoints_exist(self):
-        """Verify admin endpoints are defined"""
-        import sys
-        import os
-        sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    def test_admin_router_exists(self):
+        """Verify admin router is defined"""
         from routes import admin
-        assert hasattr(admin, 'bp')
+        assert hasattr(admin, 'router')
+        assert admin.router is not None
 
 class TestModels:
     """Test model structure"""
     
     def test_drone_model_has_fields(self):
         """Verify Drone model has required fields"""
-        import sys
-        import os
-        sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
         from models import Drone
         assert hasattr(Drone, 'name')
         assert hasattr(Drone, 'model')
@@ -85,9 +57,6 @@ class TestModels:
     
     def test_base_model_has_fields(self):
         """Verify DroneBase model has required fields"""
-        import sys
-        import os
-        sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
         from models import DroneBase
         assert hasattr(DroneBase, 'name')
         assert hasattr(DroneBase, 'lat')
@@ -95,30 +64,26 @@ class TestModels:
     
     def test_schedule_model_has_fields(self):
         """Verify Schedule model has required fields"""
-        import sys
-        import os
-        sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
         from models import Schedule
         assert hasattr(Schedule, 'drone_id')
         assert hasattr(Schedule, 'start_time')
         assert hasattr(Schedule, 'path_json')
 
-class TestAuthDecorator:
-    """Test authentication decorator"""
+class TestAuthDependencies:
+    """Test authentication dependencies"""
     
     def test_require_auth_exists(self):
-        """Verify require_auth decorator exists"""
-        import sys
-        import os
-        sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        """Verify require_auth function exists"""
         from auth import require_auth
         assert callable(require_auth)
     
+    def test_get_current_user_exists(self):
+        """Verify get_current_user function exists"""
+        from auth import get_current_user
+        assert callable(get_current_user)
+    
     def test_verify_token_exists(self):
         """Verify verify_token function exists"""
-        import sys
-        import os
-        sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
         from auth import verify_token
         assert callable(verify_token)
 
