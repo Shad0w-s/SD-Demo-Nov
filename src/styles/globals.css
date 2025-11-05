@@ -2,13 +2,48 @@
 @tailwind components;
 @tailwind utilities;
 
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 222.2 84% 4.9%;
+  }
+
+  .dark {
+    --background: 222.2 84% 4.9%;
+    --foreground: 210 40% 98%;
+  }
+}
+
 @layer components {
+  /* Light mode glass */
   .glass {
     @apply bg-white/20 backdrop-blur-xl border border-white/30 rounded-2xl shadow-xl;
+  }
+
+  .dark .glass {
+    @apply bg-black/20 backdrop-blur-xl border border-white/10 rounded-2xl shadow-xl;
   }
   
   .glass-hover {
     @apply transition-transform hover:scale-[1.01];
+  }
+
+  /* Text colors */
+  .text-primary {
+    @apply text-gray-900 dark:text-white;
+  }
+
+  .text-secondary {
+    @apply text-gray-600 dark:text-gray-300;
+  }
+
+  /* Background colors */
+  .bg-primary {
+    @apply bg-gray-50 dark:bg-gray-900;
+  }
+
+  .bg-secondary {
+    @apply bg-white dark:bg-gray-800;
   }
 }
 
@@ -19,5 +54,6 @@ body {
     sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  @apply bg-gray-50 dark:bg-gray-900 transition-colors;
 }
 
