@@ -45,3 +45,7 @@ lerna-debug.log*
 
 # Misc
 *.tsbuildinfo
+
+# Documentation (keep local, but don't commit)
+*.md
+!README.md
