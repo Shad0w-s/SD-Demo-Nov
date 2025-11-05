@@ -1,8 +1,10 @@
 'use client'
 
-import { useEffect, useState, useRef } from 'react'
-import { Box } from '@mui/material'
+import { useEffect, useState, useRef, Suspense } from 'react'
+import { useSearchParams } from 'next/navigation'
+import { Box, CircularProgress } from '@mui/material'
 import AuthGuard from '@/components/AuthGuard'
+import NavigationToolbar from '@/components/NavigationToolbar'
 import Sidebar from '@/components/Sidebar'
 import DroneMap from '@/components/DroneMap'
 import VideoFeed from '@/components/VideoFeed'
@@ -12,14 +14,19 @@ import { useAppStore } from '@/lib/store'
 import { api } from '@/lib/api'
 import { ApiError } from '@/lib/api'
 import { SimulationEngine } from '@/lib/simulation'
+import { mockDrones, mockBases } from '@/lib/mockData'
 
-function DashboardContent() {
+function DashboardContentInner() {
+  const searchParams = useSearchParams()
   const {
     setDrones,
     setBases,
     setIsLoading,
     setError,
     selectedDrone,
+    selectedBase,
+    setSelectedDrone,
+    setSelectedBase,
     currentPath,
     simulation,
     setSimulation,
@@ -31,24 +38,46 @@ function DashboardContent() {
     async function loadInitialData() {
       try {
         setIsLoading(true)
+        // Try to load from API, fallback to mock data
         const [dronesData, basesData] = await Promise.all([
-          api.getDrones().catch((err: ApiError) => {
-            setError(err.message)
-            return []
-          }),
-          api.getBases().catch(() => []),
+          api.getDrones().catch(() => mockDrones),
+          api.getBases().catch(() => mockBases),
         ])
-        setDrones(dronesData || [])
-        setBases(basesData || [])
+        setDrones(dronesData || mockDrones)
+        setBases(basesData || mockBases)
       } catch (error) {
-        setError(error instanceof Error ? error.message : 'Failed to load data')
+        // Fallback to mock data on error
+        setDrones(mockDrones)
+        setBases(mockBases)
       } finally {
         setIsLoading(false)
       }
     }
 
     loadInitialData()
-  }, [setDrones, setBases, setIsLoading, setError])
+  }, [setDrones, setBases, setIsLoading])
+
+  // Handle query params for drone/base selection
+  useEffect(() => {
+    const droneId = searchParams?.get('drone')
+    const baseId = searchParams?.get('base')
+    
+    if (droneId) {
+      const { drones } = useAppStore.getState()
+      const drone = drones.find((d) => d.id === droneId) || mockDrones.find((d) => d.id === droneId)
+      if (drone) {
+        setSelectedDrone(drone)
+      }
+    }
+    
+    if (baseId) {
+      const { bases } = useAppStore.getState()
+      const base = bases.find((b) => b.id === baseId) || mockBases.find((b) => b.id === baseId)
+      if (base) {
+        setSelectedBase(base)
+      }
+    }
+  }, [searchParams, setSelectedDrone, setSelectedBase])
 
   // Initialize simulation engine
   useEffect(() => {
@@ -103,7 +132,8 @@ function DashboardContent() {
 
   return (
     <>
-      <Box sx={{ height: '100vh', display: 'flex', bgcolor: 'background.default' }}>
+      <NavigationToolbar showBack />
+      <Box sx={{ height: 'calc(100vh - 64px)', display: 'flex', bgcolor: 'background.default' }}>
         <Sidebar />
         <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
           <Box sx={{ flex: 1, position: 'relative' }}>
@@ -125,6 +155,18 @@ function DashboardContent() {
       </Box>
       <ErrorDisplay />
     </>
+  )
+}
+
+function DashboardContent() {
+  return (
+    <Suspense fallback={
+      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
+        <CircularProgress />
+      </Box>
+    }>
+      <DashboardContentInner />
+    </Suspense>
   )
 }
 
