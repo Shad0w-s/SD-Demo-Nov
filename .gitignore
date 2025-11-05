@@ -4,6 +4,15 @@ __pycache__/
 *.py[cod]
 *$py.class
 
+# Python virtual environment
+venv/
+env/
+ENV/
+backend/venv/
+backend/env/
+*.db
+backend/*.db
+
 # Environment variables
 .env
 .env.*
