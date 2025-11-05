@@ -12,12 +12,13 @@ CORS(app, origins=["http://localhost:3000"])
 import sys
 import os
 sys.path.append(os.path.dirname(__file__))
-from routes import drones, bases, admin
+from routes import drones, bases, admin, schedules
 
 # Register blueprints
 app.register_blueprint(drones.bp, url_prefix='/api')
 app.register_blueprint(bases.bp, url_prefix='/api')
 app.register_blueprint(admin.bp, url_prefix='/api')
+app.register_blueprint(schedules.bp, url_prefix='/api')
 
 @app.route('/')
 def health():
