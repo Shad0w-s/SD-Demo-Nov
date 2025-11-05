@@ -6,7 +6,7 @@ import os
 # Supabase uses HS256 with the JWT secret for anon key verification
 # For production, we should verify against Supabase's JWKS endpoint
 # For now, we'll verify the token signature and basic claims
-SUPABASE_URL = os.getenv('SUPABASE_PROJECT_URL', 'https://qtbnulraotlnlgxbtfoy.supabase.co')
+SUPABASE_URL = os.getenv('SUPABASE_PROJECT_URL', '')
 SUPABASE_JWT_SECRET = os.getenv('SUPABASE_JWT_SECRET', '')
 
 def verify_token(token):

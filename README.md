@@ -16,9 +16,6 @@ SD-Demo-Nov/
 │   ├── app.py           # Flask app entry
 │   ├── auth.py          # JWT authentication
 │   └── models.py        # SQLAlchemy models
-├── PRD_Drone_Management_System.md
-├── Technical_Spec_Guide.md
-└── IMPLEMENTATION_PLAN.md
 ```
 
 ## 🚀 Quick Start
@@ -76,9 +73,7 @@ python app.py
 
 ## 📚 Documentation
 
-- **PRD**: See `PRD_Drone_Management_System.md` for product requirements
-- **Technical Spec**: See `Technical_Spec_Guide.md` for implementation details
-- **Implementation Plan**: See `IMPLEMENTATION_PLAN.md` for step-by-step guide
+See `env.example` and `backend/env.example` for environment variable setup.
 
 ## 🛠️ Tech Stack
 

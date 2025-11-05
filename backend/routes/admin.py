@@ -6,7 +6,7 @@ import requests
 
 bp = Blueprint('admin', __name__)
 
-SUPABASE_URL = os.getenv('SUPABASE_PROJECT_URL', 'https://qtbnulraotlnlgxbtfoy.supabase.co')
+SUPABASE_URL = os.getenv('SUPABASE_PROJECT_URL', '')
 SUPABASE_SERVICE_ROLE = os.getenv('SUPABASE_SERVICE_ROLE', '')
 
 @bp.route('/users', methods=['GET'])
