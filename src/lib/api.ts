@@ -1,8 +1,9 @@
+import { getAccessToken } from './supabaseClient'
+
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000'
 
-async function getAuthToken() {
-  // Will fetch token from Supabase session
-  return null
+async function getAuthToken(): Promise<string | null> {
+  return await getAccessToken()
 }
 
 export async function apiRequest(

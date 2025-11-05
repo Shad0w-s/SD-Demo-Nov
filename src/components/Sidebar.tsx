@@ -1,9 +1,14 @@
 'use client'
 
+import LogoutButton from './LogoutButton'
+
 export default function Sidebar() {
   return (
     <div className="w-80 glass p-4 flex flex-col h-full">
-      <h2 className="text-xl font-bold text-white mb-4">Drone Control</h2>
+      <div className="flex justify-between items-center mb-4">
+        <h2 className="text-xl font-bold text-white">Drone Control</h2>
+        <LogoutButton />
+      </div>
       {/* Drone selector dropdown */}
       <div className="mb-4">
         <select className="w-full p-2 bg-white/10 border border-white/30 rounded text-white">
