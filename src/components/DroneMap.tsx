@@ -1,8 +1,9 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import { Box, Paper, Typography, Button, CircularProgress } from '@mui/material'
 import { useAppStore } from '@/lib/store'
-import { initializeMap, addBaseMarker, addDroneMarker, addPathToMap, clearPath, MapInstance } from '@/lib/arcgis'
+import type { MapInstance } from '@/lib/map'
 
 interface DroneMapProps {
   isDrawing?: boolean
@@ -12,129 +13,179 @@ interface DroneMapProps {
 export default function DroneMap({ isDrawing = false, onDrawingChange }: DroneMapProps) {
   const ref = useRef<HTMLDivElement>(null)
   const mapInstanceRef = useRef<MapInstance | null>(null)
+  const mapUtilsRef = useRef<any>(null)
+  const [isMapReady, setIsMapReady] = useState(false)
   const { bases, selectedDrone, currentPath, setCurrentPath } = useAppStore()
 
   useEffect(() => {
-    if (!ref.current || mapInstanceRef.current) return
+    if (!ref.current || mapInstanceRef.current || typeof window === 'undefined') return
 
-    // Initialize map
-    const instance = initializeMap(ref.current)
-    mapInstanceRef.current = instance
+    let mounted = true
+
+    // Dynamically import map utilities on client side only
+    import('@/lib/map').then((mapUtils) => {
+      if (!ref.current || !mounted) return
+      
+      mapUtilsRef.current = mapUtils
+      
+      // Initialize map
+      const instance = mapUtils.initializeMap(ref.current)
+      mapInstanceRef.current = instance
+      
+      // Wait for map to be ready
+      instance.map.whenReady(() => {
+        if (mounted) {
+          setIsMapReady(true)
+        }
+      })
+    })
 
     return () => {
-      if (instance.view) {
-        instance.view.destroy()
+      mounted = false
+      if (mapInstanceRef.current?.map) {
+        mapInstanceRef.current.map.remove()
+        mapInstanceRef.current = null
       }
     }
   }, [])
 
   // Add base markers
   useEffect(() => {
-    if (!mapInstanceRef.current || !bases.length) return
+    if (!mapInstanceRef.current || !isMapReady || !bases.length || !mapUtilsRef.current) return
 
-    const { graphicsLayer } = mapInstanceRef.current
-    
-    // Clear existing base markers
-    const baseGraphics = graphicsLayer.graphics.filter(
-      (g) => g.attributes?.type === 'base'
-    )
-    baseGraphics.forEach((g) => graphicsLayer.remove(g))
-
-    // Add new base markers
-    bases.forEach((base) => {
-      addBaseMarker(graphicsLayer, base)
-    })
-  }, [bases])
+    try {
+      mapUtilsRef.current.clearMarkers(mapInstanceRef.current)
+      
+      // Add new base markers
+      bases.forEach((base) => {
+        mapUtilsRef.current.addBaseMarker(mapInstanceRef.current, base)
+      })
+    } catch (error) {
+      console.error('Error adding base markers:', error)
+    }
+  }, [bases, isMapReady])
 
   // Add/update drone marker
   useEffect(() => {
-    if (!mapInstanceRef.current || !selectedDrone) return
+    if (!mapInstanceRef.current || !isMapReady || !selectedDrone || !mapUtilsRef.current) return
 
-    const { graphicsLayer } = mapInstanceRef.current
-    
-    // Find existing drone marker
-    const existingDrone = graphicsLayer.graphics.find(
-      (g) => g.attributes?.type === 'drone' && g.attributes?.id === selectedDrone.id
-    )
+    try {
+      // Find or create drone marker
+      const defaultPosition: [number, number] = [-122.4194, 37.7749]
+      const base = bases.find((b) => b.id === selectedDrone.base_id)
+      const position: [number, number] = base ? [base.lng, base.lat] : defaultPosition
 
-    if (existingDrone) {
-      graphicsLayer.remove(existingDrone)
+      // Remove existing drone markers (keep bases)
+      const droneMarkers = mapInstanceRef.current.markers.filter(
+        (m: any) => m.options.icon?.options.className === 'custom-drone-marker'
+      )
+      droneMarkers.forEach((m: any) => mapInstanceRef.current!.map.removeLayer(m))
+      mapInstanceRef.current.markers = mapInstanceRef.current.markers.filter(
+        (m: any) => m.options.icon?.options.className !== 'custom-drone-marker'
+      )
+
+      mapUtilsRef.current.addDroneMarker(mapInstanceRef.current, selectedDrone, position)
+    } catch (error) {
+      console.error('Error adding drone marker:', error)
     }
-
-    // Add drone marker at first base or default location
-    const defaultPosition: [number, number] = [-122.4, 37.79]
-    const base = bases.find((b) => b.id === selectedDrone.base_id)
-    const position: [number, number] = base ? [base.lng, base.lat] : defaultPosition
-
-    addDroneMarker(graphicsLayer, selectedDrone, position)
-  }, [selectedDrone, bases])
+  }, [selectedDrone, bases, isMapReady])
 
   // Add path
   useEffect(() => {
-    if (!mapInstanceRef.current || !currentPath) return
+    if (!mapInstanceRef.current || !isMapReady || !currentPath || !mapUtilsRef.current) return
 
-    const { graphicsLayer } = mapInstanceRef.current
-    clearPath(graphicsLayer)
-    addPathToMap(graphicsLayer, currentPath)
-  }, [currentPath])
+    try {
+      mapUtilsRef.current.addPathToMap(mapInstanceRef.current, currentPath)
+    } catch (error) {
+      console.error('Error adding path:', error)
+    }
+  }, [currentPath, isMapReady])
 
   // Handle drawing mode
   useEffect(() => {
-    if (!mapInstanceRef.current) return
+    if (!mapInstanceRef.current || !isMapReady || !mapUtilsRef.current) return
 
-    const { view, graphicsLayer } = mapInstanceRef.current
-    
+    const { map } = mapInstanceRef.current
+
     if (!isDrawing) {
-      // Clear drawing event listeners
       return
     }
 
     const path: [number, number][] = currentPath || []
 
-    const handleClick = (event: any) => {
-      const point = view.toMap(event)
-      if (point.longitude != null && point.latitude != null) {
-        const coord: [number, number] = [point.longitude, point.latitude]
-        const newPath = [...path, coord]
-        setCurrentPath(newPath)
+    const handleClick = (e: any) => {
+      const coord: [number, number] = [e.latlng.lng, e.latlng.lat]
+      const newPath = [...path, coord]
+      setCurrentPath(newPath)
 
-        // Add temporary waypoint marker
-        addDroneMarker(graphicsLayer, { name: 'waypoint' }, coord, '#f59e0b')
-      }
+      // Add temporary waypoint marker
+      mapUtilsRef.current.addDroneMarker(mapInstanceRef.current, { name: 'waypoint' }, coord, '#f59e0b')
     }
 
-    const clickHandle = view.on('click', handleClick)
+    map.on('click', handleClick)
 
     return () => {
-      if (clickHandle) {
-        clickHandle.remove()
-      }
+      map.off('click', handleClick)
     }
-  }, [isDrawing, currentPath, setCurrentPath])
+  }, [isDrawing, currentPath, setCurrentPath, isMapReady])
 
   return (
-    <div className="relative h-full w-full">
-      <div ref={ref} className="h-full w-full" />
+    <Box sx={{ position: 'relative', height: '100%', width: '100%' }}>
+      <div ref={ref} style={{ height: '100%', width: '100%', borderRadius: '16px', overflow: 'hidden' }} />
+      {!isMapReady && (
+        <Box
+          sx={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            bgcolor: 'background.paper',
+          }}
+        >
+          <CircularProgress />
+        </Box>
+      )}
       {isDrawing && (
-        <div className="absolute top-4 left-4 glass p-4 z-10">
-          <p className="text-primary text-sm font-semibold mb-2">Drawing Mode</p>
-          <p className="text-secondary text-xs">Click on map to add waypoints</p>
-          <button
+        <Paper
+          elevation={3}
+          sx={{
+            position: 'absolute',
+            top: 16,
+            left: 16,
+            p: 2,
+            zIndex: 1000,
+            borderRadius: 2,
+          }}
+        >
+          <Typography variant="subtitle2" fontWeight="bold" gutterBottom>
+            Drawing Mode
+          </Typography>
+          <Typography variant="caption" color="text.secondary" display="block" gutterBottom>
+            Click on map to add waypoints
+          </Typography>
+          <Button
+            variant="contained"
+            color="error"
+            size="small"
             onClick={() => {
               if (onDrawingChange) {
                 onDrawingChange(false)
               }
               setCurrentPath(null)
-              if (mapInstanceRef.current) {
-                clearPath(mapInstanceRef.current.graphicsLayer)
+              if (mapInstanceRef.current && mapUtilsRef.current) {
+                mapUtilsRef.current.clearPath(mapInstanceRef.current)
               }
             }}
-            className="mt-2 px-3 py-1 bg-red-500/30 hover:bg-red-500/40 rounded text-primary text-sm"
+            sx={{ mt: 1 }}
           >
             Cancel
-          </button>
-        </div>
+          </Button>
+        </Paper>
       )}
-    </div>
+    </Box>
   )
 }

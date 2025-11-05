@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import '../styles/globals.css'
-import { ThemeProvider } from '@/lib/theme'
+import 'leaflet/dist/leaflet.css'
+import { MUIThemeProviderWrapper } from '@/lib/mui-theme'
 
 export const metadata: Metadata = {
   title: 'Drone Management System',
@@ -15,7 +16,7 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body>
-        <ThemeProvider>{children}</ThemeProvider>
+        <MUIThemeProviderWrapper>{children}</MUIThemeProviderWrapper>
       </body>
     </html>
   )

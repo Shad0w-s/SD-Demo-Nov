@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
+import { Box, CircularProgress, Typography } from '@mui/material'
 import { getSession, getUserRole } from '@/lib/supabaseClient'
 
 interface AuthGuardProps {
@@ -21,9 +22,9 @@ export default function AuthGuard({ children, requiredRole }: AuthGuardProps) {
     async function checkAuth() {
       try {
         const session = await getSession()
-        
+
         if (!isMounted) return
-        
+
         if (!session) {
           if (pathname !== '/auth/login' && pathname !== '/auth/register') {
             router.replace('/auth/login')
@@ -35,7 +36,7 @@ export default function AuthGuard({ children, requiredRole }: AuthGuardProps) {
         if (requiredRole === 'admin') {
           const role = await getUserRole()
           if (!isMounted) return
-          
+
           if (role !== 'admin') {
             router.replace('/dashboard')
             setIsLoading(false)
@@ -67,9 +68,20 @@ export default function AuthGuard({ children, requiredRole }: AuthGuardProps) {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-900">
-        <div className="text-white">Loading...</div>
-      </div>
+      <Box
+        sx={{
+          minHeight: '100vh',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          bgcolor: 'background.default',
+          gap: 2,
+        }}
+      >
+        <CircularProgress />
+        <Typography color="text.secondary">Loading...</Typography>
+      </Box>
     )
   }
 
@@ -79,4 +91,3 @@ export default function AuthGuard({ children, requiredRole }: AuthGuardProps) {
 
   return <>{children}</>
 }
-

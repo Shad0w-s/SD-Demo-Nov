@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { Box } from '@mui/material'
 import AuthGuard from '@/components/AuthGuard'
 import Sidebar from '@/components/Sidebar'
 import DroneMap from '@/components/DroneMap'
@@ -40,18 +41,26 @@ function DashboardContent() {
 
   return (
     <>
-      <div className="h-screen flex bg-primary transition-colors">
+      <Box sx={{ height: '100vh', display: 'flex', bgcolor: 'background.default' }}>
         <Sidebar />
-        <div className="flex-1 flex flex-col">
-          <div className="flex-1 relative">
+        <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+          <Box sx={{ flex: 1, position: 'relative' }}>
             <DroneMap isDrawing={isDrawing} onDrawingChange={setIsDrawing} />
-            <div className="absolute top-4 right-4 w-80 z-10">
+            <Box
+              sx={{
+                position: 'absolute',
+                top: 16,
+                right: 16,
+                width: 320,
+                zIndex: 1000,
+              }}
+            >
               <VideoFeed />
-            </div>
-          </div>
+            </Box>
+          </Box>
           <ActionBar onDrawingChange={setIsDrawing} />
-        </div>
-      </div>
+        </Box>
+      </Box>
       <ErrorDisplay />
     </>
   )
@@ -64,4 +73,3 @@ export default function DashboardPage() {
     </AuthGuard>
   )
 }
-

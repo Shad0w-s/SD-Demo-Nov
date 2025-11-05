@@ -1,6 +1,8 @@
 'use client'
 
 import { useRouter } from 'next/navigation'
+import { Button } from '@mui/material'
+import { Logout } from '@mui/icons-material'
 import { signOut } from '@/lib/supabaseClient'
 
 export default function LogoutButton() {
@@ -13,12 +15,15 @@ export default function LogoutButton() {
   }
 
   return (
-    <button
+    <Button
+      variant="outlined"
+      color="error"
+      size="small"
+      startIcon={<Logout />}
       onClick={handleLogout}
-      className="px-4 py-2 bg-red-500/20 hover:bg-red-500/30 dark:bg-red-500/10 dark:hover:bg-red-500/20 border border-red-500/30 dark:border-red-500/20 rounded-lg text-primary text-sm transition-colors"
+      sx={{ borderRadius: 2 }}
     >
       Logout
-    </button>
+    </Button>
   )
 }
-

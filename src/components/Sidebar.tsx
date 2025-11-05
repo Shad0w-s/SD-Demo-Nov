@@ -1,6 +1,23 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import {
+  Box,
+  Paper,
+  Typography,
+  Select,
+  MenuItem,
+  FormControl,
+  InputLabel,
+  Button,
+  List,
+  ListItem,
+  ListItemText,
+  CircularProgress,
+  Divider,
+  Chip,
+} from '@mui/material'
+import { FlightTakeoff, FlightLand, Warning, Cancel } from '@mui/icons-material'
 import LogoutButton from './LogoutButton'
 import ThemeToggle from './ThemeToggle'
 import { useAppStore, Drone } from '@/lib/store'
@@ -46,7 +63,7 @@ export default function Sidebar() {
     }
   }
 
-  async function handleDroneSelect(e: React.ChangeEvent<HTMLSelectElement>) {
+  async function handleDroneSelect(e: any) {
     const droneId = e.target.value
     if (!droneId) {
       setSelectedDrone(null)
@@ -69,7 +86,7 @@ export default function Sidebar() {
       // Reload drones to get updated status
       const updatedDrones = await api.getDrones()
       setDrones(updatedDrones)
-      const updated = updatedDrones.find((d) => d.id === selectedDrone.id)
+      const updated = updatedDrones.find((drone: Drone) => drone.id === selectedDrone.id)
       if (updated) setSelectedDrone(updated)
     } catch (error) {
       setError(error instanceof Error ? error.message : 'Action failed')
@@ -78,101 +95,156 @@ export default function Sidebar() {
     }
   }
 
+  const getStatusColor = (status: string) => {
+    switch (status?.toLowerCase()) {
+      case 'active':
+      case 'flying':
+        return 'success'
+      case 'idle':
+      case 'simulated':
+        return 'info'
+      case 'returning':
+        return 'warning'
+      case 'error':
+        return 'error'
+      default:
+        return 'default'
+    }
+  }
+
   return (
-    <div className="w-80 glass p-4 flex flex-col h-full">
-      <div className="flex justify-between items-center mb-4">
-        <h2 className="text-xl font-bold text-primary">Drone Control</h2>
-        <div className="flex gap-2">
-          <ThemeToggle />
-          <LogoutButton />
-        </div>
-      </div>
+    <Paper
+      elevation={3}
+      sx={{
+        width: 320,
+        height: '100%',
+        display: 'flex',
+        flexDirection: 'column',
+        borderRadius: 0,
+        borderRight: 1,
+        borderColor: 'divider',
+      }}
+    >
+      <Box sx={{ p: 2, borderBottom: 1, borderColor: 'divider' }}>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+          <Typography variant="h6" fontWeight="bold">
+            Drone Control
+          </Typography>
+          <Box sx={{ display: 'flex', gap: 1 }}>
+            <ThemeToggle />
+            <LogoutButton />
+          </Box>
+        </Box>
 
-      {/* Drone selector dropdown */}
-      <div className="mb-4">
-        <label className="block text-sm font-medium text-secondary mb-2">
-          Select Drone
-        </label>
-        <select
-          value={selectedDrone?.id || ''}
-          onChange={handleDroneSelect}
-          disabled={isLoading}
-          className="w-full p-2 bg-white/10 dark:bg-black/20 border border-white/30 dark:border-white/10 rounded text-primary text-sm disabled:opacity-50"
-        >
-          <option value="">Select Drone</option>
-          {drones.map((drone: Drone) => (
-            <option key={drone.id} value={drone.id}>
-              {drone.name} ({drone.status})
-            </option>
-          ))}
-        </select>
-      </div>
+        <FormControl fullWidth size="small">
+          <InputLabel>Select Drone</InputLabel>
+          <Select
+            value={selectedDrone?.id || ''}
+            onChange={handleDroneSelect}
+            disabled={isLoading}
+            label="Select Drone"
+          >
+            <MenuItem value="">
+              <em>None</em>
+            </MenuItem>
+            {drones.map((drone) => (
+              <MenuItem key={drone.id} value={drone.id}>
+                {drone.name}
+              </MenuItem>
+            ))}
+          </Select>
+        </FormControl>
+      </Box>
 
-      {/* Selected drone info */}
       {selectedDrone && (
-        <div className="mb-4 glass p-3 rounded-lg">
-          <h3 className="text-sm font-semibold text-primary mb-1">
+        <Box sx={{ p: 2, borderBottom: 1, borderColor: 'divider' }}>
+          <Typography variant="subtitle2" fontWeight="bold" gutterBottom>
             {selectedDrone.name}
-          </h3>
-          <p className="text-xs text-secondary">
-            Model: {selectedDrone.model || 'N/A'}
-          </p>
-          <p className="text-xs text-secondary">
-            Status: <span className="font-medium">{selectedDrone.status}</span>
-          </p>
-        </div>
+          </Typography>
+          <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mb: 1 }}>
+            <Chip label={selectedDrone.status} size="small" color={getStatusColor(selectedDrone.status)} />
+            {selectedDrone.model && (
+              <Typography variant="caption" color="text.secondary">
+                {selectedDrone.model}
+              </Typography>
+            )}
+          </Box>
+        </Box>
       )}
 
-      {/* Schedule list */}
-      <div className="flex-1 mb-4 overflow-y-auto">
-        <h3 className="text-sm font-semibold text-secondary mb-2">Schedule</h3>
-        <div className="space-y-2">
-          {schedules.length === 0 ? (
-            <p className="text-xs text-secondary">No scheduled flights</p>
-          ) : (
-            schedules
+      <Box sx={{ flex: 1, overflow: 'auto', p: 2 }}>
+        <Typography variant="subtitle2" fontWeight="bold" gutterBottom>
+          Schedule
+        </Typography>
+        {isLoading ? (
+          <CircularProgress size={24} />
+        ) : schedules.length === 0 ? (
+          <Typography variant="body2" color="text.secondary">
+            No scheduled flights
+          </Typography>
+        ) : (
+          <List dense>
+            {schedules
               .filter((s) => !selectedDrone || s.drone_id === selectedDrone.id)
               .map((schedule) => (
-                <div
+                <ListItem
                   key={schedule.id}
-                  className="glass p-2 rounded text-xs text-secondary"
+                  sx={{
+                    borderRadius: 1,
+                    mb: 0.5,
+                    bgcolor: 'action.hover',
+                  }}
                 >
-                  <p className="font-medium text-primary">
-                    {new Date(schedule.start_time).toLocaleDateString()}
-                  </p>
-                  <p className="text-secondary">
-                    {new Date(schedule.start_time).toLocaleTimeString()}
-                  </p>
-                </div>
-              ))
-          )}
-        </div>
-      </div>
+                  <ListItemText
+                    primary={new Date(schedule.start_time).toLocaleDateString()}
+                    secondary={new Date(schedule.start_time).toLocaleTimeString()}
+                  />
+                </ListItem>
+              ))}
+          </List>
+        )}
+      </Box>
 
-      {/* Quick action buttons */}
-      <div className="space-y-2">
-        <button
-          onClick={() => handleQuickAction('return_to_base')}
-          disabled={!selectedDrone || isLoading}
-          className="w-full p-2 bg-red-500/20 hover:bg-red-500/30 dark:bg-red-500/10 dark:hover:bg-red-500/20 rounded text-primary text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          Return to Base
-        </button>
-        <button
-          onClick={() => handleQuickAction('intercept')}
-          disabled={!selectedDrone || isLoading}
-          className="w-full p-2 bg-yellow-500/20 hover:bg-yellow-500/30 dark:bg-yellow-500/10 dark:hover:bg-yellow-500/20 rounded text-primary text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          Intercept
-        </button>
-        <button
-          onClick={() => handleQuickAction('end_early')}
-          disabled={!selectedDrone || isLoading}
-          className="w-full p-2 bg-orange-500/20 hover:bg-orange-500/30 dark:bg-orange-500/10 dark:hover:bg-orange-500/20 rounded text-primary text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          End Early
-        </button>
-      </div>
-    </div>
+      <Box sx={{ p: 2, borderTop: 1, borderColor: 'divider' }}>
+        <Typography variant="subtitle2" fontWeight="bold" gutterBottom>
+          Quick Actions
+        </Typography>
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+          <Button
+            variant="contained"
+            color="error"
+            startIcon={<FlightLand />}
+            onClick={() => handleQuickAction('return_to_base')}
+            disabled={!selectedDrone || isLoading}
+            fullWidth
+            size="small"
+          >
+            Return to Base
+          </Button>
+          <Button
+            variant="contained"
+            color="warning"
+            startIcon={<Warning />}
+            onClick={() => handleQuickAction('intercept')}
+            disabled={!selectedDrone || isLoading}
+            fullWidth
+            size="small"
+          >
+            Intercept
+          </Button>
+          <Button
+            variant="contained"
+            color="error"
+            startIcon={<Cancel />}
+            onClick={() => handleQuickAction('end_early')}
+            disabled={!selectedDrone || isLoading}
+            fullWidth
+            size="small"
+          >
+            End Early
+          </Button>
+        </Box>
+      </Box>
+    </Paper>
   )
 }

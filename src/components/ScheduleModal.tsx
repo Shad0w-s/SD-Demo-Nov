@@ -1,6 +1,18 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import {
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Button,
+  TextField,
+  Box,
+  Alert,
+  CircularProgress,
+} from '@mui/material'
+import { Schedule } from '@mui/icons-material'
 import { useAppStore } from '@/lib/store'
 import { api } from '@/lib/api'
 import { ApiError } from '@/lib/api'
@@ -18,7 +30,6 @@ export default function ScheduleModal({ isOpen, onClose }: ScheduleModalProps) {
 
   useEffect(() => {
     if (isOpen) {
-      // Set default start time to 1 hour from now
       const now = new Date()
       now.setHours(now.getHours() + 1)
       setStartTime(now.toISOString().slice(0, 16))
@@ -28,7 +39,7 @@ export default function ScheduleModal({ isOpen, onClose }: ScheduleModalProps) {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    
+
     if (!selectedDrone) {
       setError('Please select a drone first')
       return
@@ -51,11 +62,10 @@ export default function ScheduleModal({ isOpen, onClose }: ScheduleModalProps) {
       }
 
       await api.createSchedule(scheduleData)
-      
-      // Reload schedules
+
       const schedules = await api.getSchedules()
       setSchedules(schedules)
-      
+
       onClose()
       setStartTime('')
       setEndTime('')
@@ -67,69 +77,65 @@ export default function ScheduleModal({ isOpen, onClose }: ScheduleModalProps) {
     }
   }
 
-  if (!isOpen) return null
-
   return (
-    <div className="fixed inset-0 bg-black/50 dark:bg-black/70 flex items-center justify-center z-50">
-      <div className="glass p-6 w-full max-w-md glass-hover">
-        <h2 className="text-2xl font-bold text-primary mb-4">Schedule Flight</h2>
-        
-        {!selectedDrone && (
-          <div className="mb-4 p-3 bg-yellow-500/20 border border-yellow-500/50 rounded text-yellow-200 text-sm">
-            Please select a drone first
-          </div>
-        )}
-
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label htmlFor="startTime" className="block text-sm font-medium text-secondary mb-2">
-              Start Time
-            </label>
-            <input
-              id="startTime"
+    <Dialog open={isOpen} onClose={onClose} maxWidth="sm" fullWidth PaperProps={{ sx: { borderRadius: 2 } }}>
+      <form onSubmit={handleSubmit}>
+        <DialogTitle>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <Schedule />
+            Schedule Flight
+          </Box>
+        </DialogTitle>
+        <DialogContent>
+          {!selectedDrone && (
+            <Alert severity="warning" sx={{ mb: 2 }}>
+              Please select a drone first
+            </Alert>
+          )}
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: 1 }}>
+            <TextField
+              label="Start Time"
               type="datetime-local"
               value={startTime}
               onChange={(e) => setStartTime(e.target.value)}
               required
               disabled={!selectedDrone || isSubmitting}
-              className="w-full px-4 py-2 bg-white/10 dark:bg-black/20 border border-white/30 dark:border-white/10 rounded-lg text-primary placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-white/50 disabled:opacity-50"
+              fullWidth
+              InputLabelProps={{
+                shrink: true,
+              }}
             />
-          </div>
-
-          <div>
-            <label htmlFor="endTime" className="block text-sm font-medium text-secondary mb-2">
-              End Time (Optional)
-            </label>
-            <input
-              id="endTime"
+            <TextField
+              label="End Time (Optional)"
               type="datetime-local"
               value={endTime}
               onChange={(e) => setEndTime(e.target.value)}
               disabled={!selectedDrone || isSubmitting}
-              min={startTime}
-              className="w-full px-4 py-2 bg-white/10 dark:bg-black/20 border border-white/30 dark:border-white/10 rounded-lg text-primary placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-white/50 disabled:opacity-50"
+              fullWidth
+              InputLabelProps={{
+                shrink: true,
+              }}
+              inputProps={{
+                min: startTime,
+              }}
             />
-          </div>
-
-          <div className="flex gap-2 pt-4">
-            <button
-              type="submit"
-              disabled={!selectedDrone || isSubmitting}
-              className="flex-1 px-4 py-2 bg-green-500/30 hover:bg-green-500/40 dark:bg-green-500/20 dark:hover:bg-green-500/30 rounded text-primary font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {isSubmitting ? 'Scheduling...' : 'Schedule Flight'}
-            </button>
-            <button
-              type="button"
-              onClick={onClose}
-              disabled={isSubmitting}
-              className="px-4 py-2 bg-gray-500/30 hover:bg-gray-500/40 dark:bg-gray-500/20 dark:hover:bg-gray-500/30 rounded text-primary transition-colors disabled:opacity-50"
-            >
-              Cancel
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+          </Box>
+        </DialogContent>
+        <DialogActions sx={{ p: 2 }}>
+          <Button onClick={onClose} disabled={isSubmitting}>
+            Cancel
+          </Button>
+          <Button
+            type="submit"
+            variant="contained"
+            color="primary"
+            disabled={!selectedDrone || isSubmitting}
+            startIcon={isSubmitting ? <CircularProgress size={16} /> : null}
+          >
+            {isSubmitting ? 'Scheduling...' : 'Schedule Flight'}
+          </Button>
+        </DialogActions>
+      </form>
+    </Dialog>
   )
 }
