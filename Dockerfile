@@ -13,9 +13,10 @@ FROM node:20-alpine AS frontend
 WORKDIR /app
 ENV NODE_ENV=production
 COPY --from=frontend-builder /app/.next ./.next
-COPY --from=frontend-builder /app/public ./public
 COPY --from=frontend-builder /app/package*.json ./
 RUN npm ci --only=production
+# Create public directory if it doesn't exist
+RUN mkdir -p ./public || true
 EXPOSE 3000
 CMD ["npm", "start"]
 
