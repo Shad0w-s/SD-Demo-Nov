@@ -2,7 +2,6 @@
 const nextConfig = {
   reactStrictMode: true,
   // Performance optimizations
-  swcMinify: true,
   compress: true,
   // Code splitting optimizations
   experimental: {
