@@ -28,7 +28,7 @@ export interface Schedule {
   created_at?: string
 }
 
-interface SimulationState {
+export interface SimulationState {
   isRunning: boolean
   speed?: number
   eta?: number
