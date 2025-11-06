@@ -213,7 +213,8 @@ function BaseDashboardContentInner() {
                       key={drone.id}
                       onClick={() => {
                         setSelectedDrone(drone)
-                        router.push(`/dashboard?drone=${drone.id}`)
+                        // Use replace to avoid adding to history stack
+                        router.replace(`/dashboard?drone=${drone.id}`)
                       }}
                       sx={{ 
                         cursor: 'pointer',

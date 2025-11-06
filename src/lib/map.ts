@@ -16,6 +16,7 @@ export interface MapInstance {
   // Common methods
   remove: () => void
   whenReady: (callback: () => void) => void
+  centerOn: (lng: number, lat: number, zoom?: number) => Promise<void>
 }
 
 // ArcGIS implementation
@@ -79,6 +80,15 @@ async function initializeArcGISMap(container: HTMLDivElement): Promise<MapInstan
       whenReady: (callback: () => void) => {
         view.when().then(callback)
       },
+      centerOn: async (lng: number, lat: number, zoom?: number) => {
+        await view.when()
+        const Point = (await import('@arcgis/core/geometry/Point')).default
+        const center = new Point({ longitude: lng, latitude: lat })
+        await view.goTo({
+          center,
+          zoom: zoom || view.zoom,
+        }, { duration: 1000 })
+      },
     }
 
     return instance
@@ -130,6 +140,9 @@ function initializeOSMMap(container: HTMLDivElement): MapInstance {
     },
     whenReady: (callback: () => void) => {
       map.whenReady(callback)
+    },
+    centerOn: async (lng: number, lat: number, zoom?: number) => {
+      map.setView([lat, lng], zoom || map.getZoom(), { animate: true, duration: 1.0 })
     },
   }
 

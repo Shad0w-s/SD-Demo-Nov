@@ -2,7 +2,7 @@
  * Mock Data for Iteration 2 Testing
  * 3 Bases and 10 Drones with realistic data
  */
-import { Drone, Base } from './store'
+import { Drone, Base, Schedule } from './store'
 
 export const mockBases: Base[] = [
   {
@@ -172,4 +172,104 @@ export function formatTimeAgo(dateString: string): string {
   if (diffHours < 24) return `${diffHours} hour${diffHours > 1 ? 's' : ''} ago`
   return `${Math.floor(diffHours / 24)} day${Math.floor(diffHours / 24) > 1 ? 's' : ''} ago`
 }
+
+/**
+ * Mock schedules - pre-loaded for some drones in their geographical areas
+ */
+export const mockSchedules: Schedule[] = [
+  // San Francisco area schedules
+  {
+    id: 'schedule-1',
+    drone_id: 'drone-1',
+    start_time: new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString(), // 2 hours from now
+    end_time: new Date(Date.now() + 3 * 60 * 60 * 1000).toISOString(), // 3 hours from now
+    path_json: {
+      coordinates: [
+        [-122.4194, 37.7749], // SF Base
+        [-122.4094, 37.7849], // North
+        [-122.3994, 37.7749], // East
+        [-122.4094, 37.7649], // South
+        [-122.4194, 37.7749], // Back to base
+      ],
+    },
+    created_at: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
+  },
+  {
+    id: 'schedule-2',
+    drone_id: 'drone-5',
+    start_time: new Date(Date.now() + 5 * 60 * 60 * 1000).toISOString(), // 5 hours from now
+    end_time: new Date(Date.now() + 6 * 60 * 60 * 1000).toISOString(),
+    path_json: {
+      coordinates: [
+        [-122.4194, 37.7749], // SF Base
+        [-122.4294, 37.7649], // Southwest
+        [-122.4394, 37.7549], // Further southwest
+        [-122.4194, 37.7749], // Back to base
+      ],
+    },
+    created_at: new Date(Date.now() - 12 * 60 * 60 * 1000).toISOString(),
+  },
+  // Austin area schedules
+  {
+    id: 'schedule-3',
+    drone_id: 'drone-3',
+    start_time: new Date(Date.now() + 1 * 60 * 60 * 1000).toISOString(), // 1 hour from now
+    end_time: new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString(),
+    path_json: {
+      coordinates: [
+        [-97.7431, 30.2672], // Austin Base
+        [-97.7331, 30.2772], // North
+        [-97.7531, 30.2772], // Northeast
+        [-97.7431, 30.2672], // Back to base
+      ],
+    },
+    created_at: new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString(),
+  },
+  {
+    id: 'schedule-4',
+    drone_id: 'drone-4',
+    start_time: new Date(Date.now() + 8 * 60 * 60 * 1000).toISOString(), // 8 hours from now
+    end_time: new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString(),
+    path_json: {
+      coordinates: [
+        [-97.7431, 30.2672], // Austin Base
+        [-97.7531, 30.2572], // Southeast
+        [-97.7331, 30.2572], // Southwest
+        [-97.7431, 30.2672], // Back to base
+      ],
+    },
+    created_at: new Date(Date.now() - 18 * 60 * 60 * 1000).toISOString(),
+  },
+  // New York area schedules
+  {
+    id: 'schedule-5',
+    drone_id: 'drone-6',
+    start_time: new Date(Date.now() + 3 * 60 * 60 * 1000).toISOString(), // 3 hours from now
+    end_time: new Date(Date.now() + 4 * 60 * 60 * 1000).toISOString(),
+    path_json: {
+      coordinates: [
+        [-74.0060, 40.7128], // NY Base
+        [-74.0160, 40.7228], // North
+        [-74.0260, 40.7128], // East
+        [-74.0060, 40.7128], // Back to base
+      ],
+    },
+    created_at: new Date(Date.now() - 10 * 60 * 60 * 1000).toISOString(),
+  },
+  {
+    id: 'schedule-6',
+    drone_id: 'drone-7',
+    start_time: new Date(Date.now() + 12 * 60 * 60 * 1000).toISOString(), // 12 hours from now
+    end_time: new Date(Date.now() + 13 * 60 * 60 * 1000).toISOString(),
+    path_json: {
+      coordinates: [
+        [-74.0060, 40.7128], // NY Base
+        [-74.0060, 40.7028], // South
+        [-73.9960, 40.7028], // Southeast
+        [-74.0060, 40.7128], // Back to base
+      ],
+    },
+    created_at: new Date(Date.now() - 36 * 60 * 60 * 1000).toISOString(),
+  },
+]
 

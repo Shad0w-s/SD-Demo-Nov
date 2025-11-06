@@ -26,14 +26,28 @@ export default function NavigationToolbar({
   useEffect(() => {
     // Check browser history availability
     if (typeof window !== 'undefined') {
-      setCanGoBack(window.history.length > 1)
+      const pathname = window.location.pathname
+      // On dashboard, don't allow back if we came from auth pages
+      if (pathname === '/dashboard' && window.history.length <= 2) {
+        setCanGoBack(false)
+      } else {
+        setCanGoBack(window.history.length > 1)
+      }
       // Note: forward state is harder to detect without tracking navigation
       // For now, we'll use the props passed from parent
     }
   }, [])
 
   const handleBack = () => {
-    router.back()
+    // Only go back if there's actual history (not from registration/login)
+    if (typeof window !== 'undefined') {
+      const currentPath = window.location.pathname
+      // If we're on dashboard and came from auth, do nothing
+      if (currentPath === '/dashboard' && window.history.length <= 2) {
+        return // Don't go back to login/register
+      }
+      router.back()
+    }
   }
 
   const handleForward = () => {

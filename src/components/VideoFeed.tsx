@@ -10,6 +10,8 @@ import {
   LinearProgress,
   Card,
   CardContent,
+  IconButton,
+  Collapse,
 } from '@mui/material'
 import {
   VideocamOff,
@@ -19,6 +21,8 @@ import {
   Speed,
   Navigation,
   Timer,
+  ExpandMore,
+  ExpandLess,
 } from '@mui/icons-material'
 import { useAppStore } from '@/lib/store'
 
@@ -26,6 +30,7 @@ function VideoFeedComponent() {
   const { selectedDrone, simulation } = useAppStore()
   const [progress, setProgress] = useState(0)
   const [timeRemaining, setTimeRemaining] = useState<number | null>(null)
+  const [isExpanded, setIsExpanded] = useState(true)
 
   // Update progress and time remaining during simulation
   useEffect(() => {
@@ -62,6 +67,33 @@ function VideoFeedComponent() {
     return `${mins}:${secs.toString().padStart(2, '0')}`
   }
 
+  if (!isExpanded) {
+    return (
+      <Paper
+        elevation={3}
+        sx={{
+          p: 1,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          borderRadius: 2,
+          cursor: 'pointer',
+        }}
+        onClick={() => setIsExpanded(true)}
+      >
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <VideocamOff sx={{ fontSize: 20 }} />
+          <Typography variant="body2" fontWeight="bold">
+            {selectedDrone ? selectedDrone.name : 'Camera Feed'}
+          </Typography>
+        </Box>
+        <IconButton size="small" onClick={(e) => { e.stopPropagation(); setIsExpanded(true) }}>
+          <ExpandMore />
+        </IconButton>
+      </Paper>
+    )
+  }
+
   return (
     <Paper
       elevation={3}
@@ -73,20 +105,24 @@ function VideoFeedComponent() {
         height: '100%',
       }}
     >
-      {/* Header */}
-      <Box sx={{ mb: 2 }}>
-        <Typography variant="h6" fontWeight="bold" gutterBottom>
+      {/* Header with collapse button */}
+      <Box sx={{ mb: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <Typography variant="h6" fontWeight="bold">
           {selectedDrone ? selectedDrone.name : 'No Drone Selected'}
         </Typography>
-        {selectedDrone && (
-          <Chip
-            label={selectedDrone.status}
-            size="small"
-            color={selectedDrone.status === 'active' ? 'success' : 'default'}
-            sx={{ mb: 1 }}
-          />
-        )}
+        <IconButton size="small" onClick={() => setIsExpanded(false)}>
+          <ExpandLess />
+        </IconButton>
       </Box>
+
+      {selectedDrone && (
+        <Chip
+          label={selectedDrone.status}
+          size="small"
+          color={selectedDrone.status === 'active' ? 'success' : 'default'}
+          sx={{ mb: 2 }}
+        />
+      )}
 
       {/* Video Placeholder */}
       <Box

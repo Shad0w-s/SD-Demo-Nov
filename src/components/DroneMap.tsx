@@ -15,6 +15,7 @@ function DroneMapComponent({ isDrawing = false, onDrawingChange }: DroneMapProps
   const mapInstanceRef = useRef<MapInstance | null>(null)
   const mapUtilsRef = useRef<any>(null)
   const [isMapReady, setIsMapReady] = useState(false)
+  const [loadingDroneId, setLoadingDroneId] = useState<string | null>(null)
   const { bases, selectedDrone, currentPath, setCurrentPath, simulation, selectedBase } = useAppStore()
 
   useEffect(() => {
@@ -22,8 +23,9 @@ function DroneMapComponent({ isDrawing = false, onDrawingChange }: DroneMapProps
 
     let mounted = true
 
-    // Lazy load map initialization after a short delay to not block render
-    const initTimeout = setTimeout(() => {
+    // Lazy load map initialization after a delay to not block render
+    // Use requestIdleCallback if available, otherwise setTimeout with longer delay
+    const initMap = () => {
       // Dynamically import map utilities on client side only
       import('@/lib/map').then(async (mapUtils) => {
         if (!ref.current || !mounted) return
@@ -48,20 +50,43 @@ function DroneMapComponent({ isDrawing = false, onDrawingChange }: DroneMapProps
           }
         }
       })
-    }, 100) // Small delay to allow page to render first
+    }
 
-    return () => {
-      clearTimeout(initTimeout)
-      mounted = false
-      if (mapInstanceRef.current) {
-        try {
-          if (typeof mapInstanceRef.current.remove === 'function') {
-            mapInstanceRef.current.remove()
-          }
-        } catch (error) {
-          console.error('Error cleaning up map:', error)
+    // Use requestIdleCallback for better performance, fallback to setTimeout
+    if (typeof window !== 'undefined' && 'requestIdleCallback' in window) {
+      const idleTimeout = (window as any).requestIdleCallback(initMap, { timeout: 500 })
+      return () => {
+        if (typeof idleTimeout === 'number') {
+          (window as any).cancelIdleCallback(idleTimeout)
         }
-        mapInstanceRef.current = null
+        mounted = false
+        if (mapInstanceRef.current) {
+          try {
+            if (typeof mapInstanceRef.current.remove === 'function') {
+              mapInstanceRef.current.remove()
+            }
+          } catch (error) {
+            console.error('Error cleaning up map:', error)
+          }
+          mapInstanceRef.current = null
+        }
+      }
+    } else {
+      const initTimeout = setTimeout(initMap, 300) // Longer delay for slower devices
+
+      return () => {
+        clearTimeout(initTimeout)
+        mounted = false
+        if (mapInstanceRef.current) {
+          try {
+            if (typeof mapInstanceRef.current.remove === 'function') {
+              mapInstanceRef.current.remove()
+            }
+          } catch (error) {
+            console.error('Error cleaning up map:', error)
+          }
+          mapInstanceRef.current = null
+        }
       }
     }
   }, [])
@@ -123,12 +148,38 @@ function DroneMapComponent({ isDrawing = false, onDrawingChange }: DroneMapProps
     addMarkers()
   }, [bases, isMapReady, selectedDrone, selectedBase])
 
-  // Add/update drone marker
+  // Auto-center map when drone or base is selected
+  useEffect(() => {
+    if (!mapInstanceRef.current || !isMapReady || !mapUtilsRef.current) return
+
+    const centerMap = async () => {
+      try {
+        if (selectedDrone) {
+          const base = bases.find((b) => b.id === selectedDrone.base_id)
+          if (base) {
+            await mapInstanceRef.current!.centerOn(base.lng, base.lat, 14)
+          }
+        } else if (selectedBase) {
+          await mapInstanceRef.current!.centerOn(selectedBase.lng, selectedBase.lat, 14)
+        }
+      } catch (error) {
+        console.error('Error centering map:', error)
+      }
+    }
+
+    centerMap()
+  }, [selectedDrone, selectedBase, isMapReady, bases])
+
+  // Add/update drone marker with loading indicator
   useEffect(() => {
     if (!mapInstanceRef.current || !isMapReady || !selectedDrone || !mapUtilsRef.current) return
 
     const addDrone = async () => {
+      setLoadingDroneId(selectedDrone.id)
       try {
+        // Small delay to show loading indicator
+        await new Promise(resolve => setTimeout(resolve, 300))
+        
         // Use simulation position if available, otherwise use base position
         const defaultPosition: [number, number] = [-122.4194, 37.7749]
         const base = bases.find((b) => b.id === selectedDrone.base_id)
@@ -174,6 +225,8 @@ function DroneMapComponent({ isDrawing = false, onDrawingChange }: DroneMapProps
         await mapUtilsRef.current.addDroneMarker(mapInstanceRef.current, selectedDrone, position)
       } catch (error) {
         console.error('Error adding drone marker:', error)
+      } finally {
+        setLoadingDroneId(null)
       }
     }
 
@@ -328,6 +381,28 @@ function DroneMapComponent({ isDrawing = false, onDrawingChange }: DroneMapProps
           }}
         >
           <CircularProgress />
+        </Box>
+      )}
+      {loadingDroneId && isMapReady && (
+        <Box
+          sx={{
+            position: 'absolute',
+            top: 16,
+            left: 16,
+            zIndex: 1000,
+            bgcolor: 'background.paper',
+            borderRadius: 2,
+            p: 1.5,
+            boxShadow: 3,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 1,
+          }}
+        >
+          <CircularProgress size={20} />
+          <Typography variant="body2" color="text.secondary">
+            Loading drone...
+          </Typography>
         </Box>
       )}
       {isDrawing && (

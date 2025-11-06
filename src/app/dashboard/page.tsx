@@ -27,7 +27,7 @@ import { useAppStore } from '@/lib/store'
 import { api } from '@/lib/api'
 import { ApiError } from '@/lib/api'
 import { SimulationEngine } from '@/lib/simulation'
-import { mockDrones, mockBases } from '@/lib/mockData'
+import { mockDrones, mockBases, mockSchedules } from '@/lib/mockData'
 
 function DashboardContentInner() {
   const searchParams = useSearchParams()
@@ -52,10 +52,11 @@ function DashboardContentInner() {
     // Set mock data immediately for instant UI
     setDrones(mockDrones)
     setBases(mockBases)
-    setSchedules([]) // Initialize schedules
+    setSchedules(mockSchedules) // Initialize with mock schedules
     
     // Then try to fetch from API in background (non-blocking)
-    async function loadInitialData() {
+    // Use requestIdleCallback or setTimeout to defer API calls
+    const loadInitialData = async () => {
       try {
         setIsLoading(true)
         // Short timeout for API calls - load all data in parallel
@@ -82,8 +83,12 @@ function DashboardContentInner() {
       }
     }
 
-    // Load API data asynchronously (non-blocking)
-    loadInitialData()
+    // Defer API calls to not block initial render
+    if (typeof window !== 'undefined' && 'requestIdleCallback' in window) {
+      (window as any).requestIdleCallback(loadInitialData, { timeout: 1000 })
+    } else {
+      setTimeout(loadInitialData, 100)
+    }
   }, [setDrones, setBases, setIsLoading, setSchedules])
 
   // Memoize drone and base selection logic

@@ -18,7 +18,7 @@ import {
   Divider,
   Chip,
 } from '@mui/material'
-import { FlightTakeoff, FlightLand, Warning, Cancel } from '@mui/icons-material'
+import { FlightLand, Warning, Cancel } from '@mui/icons-material'
 import { useAppStore, Drone } from '@/lib/store'
 import { api } from '@/lib/api'
 import { ApiError } from '@/lib/api'
@@ -33,6 +33,7 @@ export default function Sidebar() {
     setDrones,
     setSchedules,
     setSelectedDrone,
+    isLoading,
     setIsLoading,
     setError,
   } = useAppStore()
@@ -59,18 +60,30 @@ export default function Sidebar() {
 
     try {
       setIsLoading(true)
-      await api.droneAction(selectedDrone.id, action)
-      // Reload drones to get updated status
-      const updatedDrones = await api.getDrones()
-      setDrones(updatedDrones)
-      const updated = updatedDrones.find((drone: Drone) => drone.id === selectedDrone.id)
-      if (updated) setSelectedDrone(updated)
+      
+      if (action === 'return_to_base') {
+        const { updateDrone, setSelectedDrone } = useAppStore.getState()
+        updateDrone(selectedDrone.id, { status: 'charging' })
+        setSelectedDrone({ ...selectedDrone, status: 'charging' })
+      } else if (action === 'end_early') {
+        const { updateDrone, setSelectedDrone } = useAppStore.getState()
+        updateDrone(selectedDrone.id, { status: 'not charging' })
+        setSelectedDrone({ ...selectedDrone, status: 'not charging' })
+      } else {
+        // For other actions, try API call
+        await api.droneAction(selectedDrone.id, action)
+        const updatedDrone = await api.getDrone(selectedDrone.id)
+        const { updateDrone, setSelectedDrone } = useAppStore.getState()
+        updateDrone(selectedDrone.id, updatedDrone)
+        setSelectedDrone(updatedDrone)
+      }
     } catch (error) {
       setError(error instanceof Error ? error.message : 'Action failed')
     } finally {
       setIsLoading(false)
     }
   }
+
 
   const getStatusColor = (status: string) => {
     switch (status?.toLowerCase()) {
@@ -147,7 +160,7 @@ export default function Sidebar() {
 
       <Box sx={{ flex: 1, overflow: 'auto', p: 2 }}>
         <Typography variant="subtitle2" fontWeight="bold" gutterBottom>
-          Schedule
+          Scheduled Routes
         </Typography>
         {schedules.length === 0 ? (
           <Typography variant="body2" color="text.secondary">
@@ -157,21 +170,56 @@ export default function Sidebar() {
           <List dense>
             {schedules
               .filter((s) => !selectedDrone || s.drone_id === selectedDrone.id)
-              .map((schedule) => (
-                <ListItem
-                  key={schedule.id}
-                  sx={{
-                    borderRadius: 1,
-                    mb: 0.5,
-                    bgcolor: 'action.hover',
-                  }}
-                >
-                  <ListItemText
-                    primary={new Date(schedule.start_time).toLocaleDateString()}
-                    secondary={new Date(schedule.start_time).toLocaleTimeString()}
-                  />
-                </ListItem>
-              ))}
+              .sort((a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime())
+              .map((schedule) => {
+                const startTime = new Date(schedule.start_time)
+                const endTime = schedule.end_time ? new Date(schedule.end_time) : null
+                const duration = endTime 
+                  ? Math.round((endTime.getTime() - startTime.getTime()) / (1000 * 60))
+                  : null
+                const hasRoute = schedule.path_json?.coordinates && schedule.path_json.coordinates.length >= 2
+                const waypointCount = schedule.path_json?.coordinates?.length || 0
+                
+                return (
+                  <ListItem
+                    key={schedule.id}
+                    sx={{
+                      borderRadius: 1,
+                      mb: 0.5,
+                      bgcolor: 'action.hover',
+                      flexDirection: 'column',
+                      alignItems: 'flex-start',
+                    }}
+                  >
+                    <Box sx={{ width: '100%' }}>
+                      <ListItemText
+                        primary={
+                          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <Typography variant="body2" fontWeight="bold">
+                              {startTime.toLocaleDateString()} {startTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            </Typography>
+                            {duration && (
+                              <Chip label={`${duration} min`} size="small" color="primary" />
+                            )}
+                          </Box>
+                        }
+                        secondary={
+                          <Box sx={{ mt: 0.5 }}>
+                            <Typography variant="caption" color="text.secondary" display="block">
+                              {hasRoute ? `Route: ${waypointCount} waypoints` : 'Default patrol route'}
+                            </Typography>
+                            {endTime && (
+                              <Typography variant="caption" color="text.secondary" display="block">
+                                Ends: {endTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                              </Typography>
+                            )}
+                          </Box>
+                        }
+                      />
+                    </Box>
+                  </ListItem>
+                )
+              })}
           </List>
         )}
       </Box>
@@ -193,11 +241,11 @@ export default function Sidebar() {
             Return to Base
           </Button>
           <Button
-            variant="contained"
+            variant="outlined"
             color="warning"
             startIcon={<Warning />}
-            onClick={() => handleQuickAction('intercept')}
-            disabled={!selectedDrone || isLoading}
+            onClick={() => {}}
+            disabled={true}
             fullWidth
             size="small"
           >

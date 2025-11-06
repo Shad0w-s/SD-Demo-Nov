@@ -8,7 +8,7 @@ export interface ApiError {
 }
 
 // Create AbortController for timeout
-function createTimeoutController(timeoutMs: number = 2000): AbortController {
+function createTimeoutController(timeoutMs: number = 1000): AbortController {
   const controller = new AbortController()
   setTimeout(() => controller.abort(), timeoutMs)
   return controller
@@ -17,7 +17,7 @@ function createTimeoutController(timeoutMs: number = 2000): AbortController {
 export async function apiRequest(
   endpoint: string,
   options: RequestInit = {},
-  timeoutMs: number = 2000
+  timeoutMs: number = 1000
 ): Promise<any> {
   try {
     const token = await getAccessToken()
