@@ -18,11 +18,11 @@ services:
       retries: 5
 
   backend:
+    platform: linux/amd64
     build:
       context: .
       dockerfile: Dockerfile
       target: backend
-      platform: linux/amd64
     environment:
       DATABASE_URL: postgresql://droneuser:dronepassword@postgres:5432/dronedb
       SUPABASE_PROJECT_URL: ${SUPABASE_PROJECT_URL}
@@ -37,11 +37,11 @@ services:
       - ./backend:/app
 
   frontend:
+    platform: linux/amd64
     build:
       context: .
       dockerfile: Dockerfile
       target: frontend
-      platform: linux/amd64
     environment:
       NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL}
       NEXT_PUBLIC_SUPABASE_ANON_KEY: ${NEXT_PUBLIC_SUPABASE_ANON_KEY}
