@@ -367,7 +367,7 @@ export async function addPathToMap(
     mapInstance.pathLayer = graphic
 
     // Fit view to path
-    if (path.length > 0) {
+    if (path.length > 0 && polyline.extent) {
       await mapInstance.view!.goTo(polyline.extent.expand(1.5))
     }
 
