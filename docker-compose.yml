@@ -17,46 +17,37 @@ services:
       timeout: 5s
       retries: 5
 
-  backend:
+  # DEMO ONLY: Combined frontend + backend in single container
+  # ⚠️  For production, split into separate frontend/backend services
+  app:
     platform: linux/amd64
     build:
       context: .
       dockerfile: Dockerfile
-      target: backend
+      args:
+        NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL}
+        NEXT_PUBLIC_SUPABASE_ANON_KEY: ${NEXT_PUBLIC_SUPABASE_ANON_KEY}
+        NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-http://localhost:5000}
+        NEXT_PUBLIC_ARCGIS_API_KEY: ${NEXT_PUBLIC_ARCGIS_API_KEY}
     environment:
+      # Backend environment variables
       DATABASE_URL: postgresql://droneuser:dronepassword@postgres:5432/dronedb
       SUPABASE_PROJECT_URL: ${SUPABASE_PROJECT_URL}
       SUPABASE_SERVICE_ROLE: ${SUPABASE_SERVICE_ROLE}
       SUPABASE_JWT_SECRET: ${SUPABASE_JWT_SECRET}
+      # Frontend environment variables
+      NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL}
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ${NEXT_PUBLIC_SUPABASE_ANON_KEY}
+      NEXT_PUBLIC_API_BASE_URL: http://localhost:5000
+      NEXT_PUBLIC_ARCGIS_API_KEY: ${NEXT_PUBLIC_ARCGIS_API_KEY}
     ports:
+      - "3000:3000"
       - "5000:5000"
     depends_on:
       postgres:
         condition: service_healthy
     volumes:
-      - ./backend:/app
-
-  frontend:
-    platform: linux/amd64
-    build:
-      context: .
-      dockerfile: Dockerfile
-      target: frontend
-      args:
-        NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL}
-        NEXT_PUBLIC_SUPABASE_ANON_KEY: ${NEXT_PUBLIC_SUPABASE_ANON_KEY}
-        NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-http://backend:5000}
-        NEXT_PUBLIC_ARCGIS_API_KEY: ${NEXT_PUBLIC_ARCGIS_API_KEY}
-    environment:
-      NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL}
-      NEXT_PUBLIC_SUPABASE_ANON_KEY: ${NEXT_PUBLIC_SUPABASE_ANON_KEY}
-      NEXT_PUBLIC_API_BASE_URL: http://backend:5000
-      NEXT_PUBLIC_ARCGIS_API_KEY: ${NEXT_PUBLIC_ARCGIS_API_KEY}
-    ports:
-      - "3000:3000"
-    depends_on:
-      - backend
+      - ./backend:/app/backend
 
 volumes:
   postgres_data:
-
