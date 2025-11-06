@@ -1,53 +1,50 @@
 version: '3.8'
 
 services:
-  postgres:
-    image: postgres:15-alpine
-    environment:
-      POSTGRES_USER: droneuser
-      POSTGRES_PASSWORD: dronepassword
-      POSTGRES_DB: dronedb
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: drone-backend
     ports:
-      - "5432:5432"
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=sqlite:///./data/drone_demo.db
+      - SUPABASE_JWT_SECRET=
+      - SUPABASE_PROJECT_URL=
+    volumes:
+      - backend-data:/app/data
+    networks:
+      - drone-network
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U droneuser"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/drones')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
 
-  # DEMO ONLY: Combined frontend + backend in single container
-  # ⚠️  For production, split into separate frontend/backend services
-  app:
-    platform: linux/amd64
+  frontend:
     build:
       context: .
       dockerfile: Dockerfile
-      args:
-        NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL}
-        NEXT_PUBLIC_SUPABASE_ANON_KEY: ${NEXT_PUBLIC_SUPABASE_ANON_KEY}
-        NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-http://localhost:5000}
-        NEXT_PUBLIC_ARCGIS_API_KEY: ${NEXT_PUBLIC_ARCGIS_API_KEY}
-    environment:
-      # Backend environment variables
-      DATABASE_URL: postgresql://droneuser:dronepassword@postgres:5432/dronedb
-      SUPABASE_PROJECT_URL: ${SUPABASE_PROJECT_URL}
-      SUPABASE_SERVICE_ROLE: ${SUPABASE_SERVICE_ROLE}
-      SUPABASE_JWT_SECRET: ${SUPABASE_JWT_SECRET}
-      # Frontend environment variables
-      NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL}
-      NEXT_PUBLIC_SUPABASE_ANON_KEY: ${NEXT_PUBLIC_SUPABASE_ANON_KEY}
-      NEXT_PUBLIC_API_BASE_URL: http://localhost:5000
-      NEXT_PUBLIC_ARCGIS_API_KEY: ${NEXT_PUBLIC_ARCGIS_API_KEY}
+    container_name: drone-frontend
     ports:
       - "3000:3000"
-      - "5000:5000"
+    environment:
+      - NEXT_PUBLIC_API_BASE_URL=http://localhost:8000
+      - NEXT_PUBLIC_ARCGIS_API_KEY=${NEXT_PUBLIC_ARCGIS_API_KEY}
+      - NEXT_PUBLIC_SUPABASE_URL=
+      - NEXT_PUBLIC_SUPABASE_ANON_KEY=
     depends_on:
-      postgres:
+      backend:
         condition: service_healthy
-    volumes:
-      - ./backend:/app/backend
+    networks:
+      - drone-network
+
+networks:
+  drone-network:
+    driver: bridge
 
 volumes:
-  postgres_data:
+  backend-data:
+    driver: local

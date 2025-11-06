@@ -1,61 +1,56 @@
-# ============================================================================
-# DEMO ONLY - Single Image Dockerfile
-# ⚠️  WARNING: This is for DEMO purposes only!
-# For production, revert to separate frontend/backend containers
-# ============================================================================
+# Frontend Dockerfile
+FROM node:18-alpine AS base
 
-# Stage 1: Frontend Build
-FROM node:20-alpine AS frontend-builder
+# Install dependencies only when needed
+FROM base AS deps
+RUN apk add --no-cache libc6-compat
 WORKDIR /app
 
-# Accept build arguments
-ARG NEXT_PUBLIC_SUPABASE_URL
-ARG NEXT_PUBLIC_SUPABASE_ANON_KEY
-ARG NEXT_PUBLIC_API_BASE_URL
-ARG NEXT_PUBLIC_ARCGIS_API_KEY
-
-# Set as environment variables for the build
-ENV NEXT_PUBLIC_SUPABASE_URL=$NEXT_PUBLIC_SUPABASE_URL
-ENV NEXT_PUBLIC_SUPABASE_ANON_KEY=$NEXT_PUBLIC_SUPABASE_ANON_KEY
-ENV NEXT_PUBLIC_API_BASE_URL=$NEXT_PUBLIC_API_BASE_URL
-ENV NEXT_PUBLIC_ARCGIS_API_KEY=$NEXT_PUBLIC_ARCGIS_API_KEY
-
-COPY package*.json ./
+# Copy package files
+COPY package.json package-lock.json* ./
 RUN npm ci
+
+# Rebuild the source code only when needed
+FROM base AS builder
+WORKDIR /app
+COPY --from=deps /app/node_modules ./node_modules
 COPY . .
+
+# Set environment variables for build
+ENV NEXT_TELEMETRY_DISABLED 1
+ENV NEXT_PUBLIC_API_BASE_URL=http://localhost:8000
+
+# Build the application
 RUN npm run build
 
-# Stage 2: Combined Image with Both Services
-FROM python:3.11-slim
-
-# Install Node.js (Python image doesn't include it)
-RUN apt-get update && \
-    apt-get install -y curl && \
-    curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && \
-    apt-get install -y nodejs && \
-    apt-get clean && \
-    rm -rf /var/lib/apt/lists/*
-
+# Production image, copy all the files and run next
+FROM base AS runner
 WORKDIR /app
 
-# Install backend dependencies
-COPY backend/requirements.txt ./backend/
-RUN pip install --no-cache-dir -r backend/requirements.txt
+ENV NODE_ENV production
+ENV NEXT_TELEMETRY_DISABLED 1
 
-# Copy backend code
-COPY backend/ ./backend/
+RUN addgroup --system --gid 1001 nodejs
+RUN adduser --system --uid 1001 nextjs
 
-# Copy frontend build artifacts
-COPY --from=frontend-builder /app/.next ./.next
-COPY --from=frontend-builder /app/package*.json ./
-RUN npm ci --only=production
-RUN mkdir -p ./public || true
+# Copy necessary files
+COPY --from=builder /app/public ./public
 
-# Copy startup script
-COPY start.sh /app/start.sh
-RUN chmod +x /app/start.sh
+# Set the correct permission for prerender cache
+RUN mkdir .next
+RUN chown nextjs:nodejs .next
 
-EXPOSE 3000 5000
+# Automatically leverage output traces to reduce image size
+# https://nextjs.org/docs/advanced-features/output-file-tracing
+COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
+COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
-# Run the startup script
-CMD ["/app/start.sh"]
+USER nextjs
+
+EXPOSE 3000
+
+ENV PORT 3000
+ENV HOSTNAME "0.0.0.0"
+
+# Start the application
+CMD ["node", "server.js"]

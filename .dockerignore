@@ -1,17 +1,45 @@
-node_modules
-.next
+# Dependencies
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Next.js
+.next/
+out/
+build/
+dist/
+
+# Testing
+coverage/
+.nyc_output/
+
+# Misc
+.DS_Store
+*.pem
 .env
 .env.local
-.env.production
-.git
-.gitignore
-README.md
-*.md
-backend/__pycache__
-backend/.pytest_cache
-backend/venv
-.pytest_cache
-coverage
-.vscode
-.idea
+.env.development.local
+.env.test.local
+.env.production.local
 
+# Debug
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Git
+.git/
+.gitignore
+
+# CI
+.github/
+
+# Docs
+README.md
+docs/
+
+# Backend (we only need frontend)
+backend/
