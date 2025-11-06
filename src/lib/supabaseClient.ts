@@ -4,6 +4,16 @@ import { Session } from '@supabase/supabase-js'
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
 
+// Debug logging (remove after fixing)
+if (typeof window !== 'undefined') {
+  console.log('[Supabase Config Debug]', {
+    supabaseUrl: supabaseUrl || 'EMPTY',
+    supabaseAnonKey: supabaseAnonKey ? `${supabaseAnonKey.substring(0, 20)}...` : 'EMPTY',
+    isConfigured: !!(supabaseUrl && supabaseAnonKey && !supabaseUrl.includes('placeholder') && supabaseUrl.startsWith('http')),
+    allEnvVars: Object.keys(process.env).filter(k => k.startsWith('NEXT_PUBLIC_'))
+  })
+}
+
 // Check if Supabase is properly configured
 export const isSupabaseConfigured = !!(supabaseUrl && supabaseAnonKey && 
   !supabaseUrl.includes('placeholder') && 
