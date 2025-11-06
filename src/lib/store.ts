@@ -86,9 +86,17 @@ export const useAppStore = create<AppState>((set) => ({
   setError: (error) => set({ error }),
   addDrone: (drone) => set((state) => ({ drones: [...state.drones, drone] })),
   updateDrone: (id, updates) =>
-    set((state) => ({
-      drones: state.drones.map((d) => (d.id === id ? { ...d, ...updates } : d)),
-    })),
+    set((state) => {
+      const updatedDrones = state.drones.map((d) => (d.id === id ? { ...d, ...updates } : d))
+      // Also update selectedDrone if it matches
+      const updatedSelectedDrone = state.selectedDrone?.id === id
+        ? { ...state.selectedDrone, ...updates }
+        : state.selectedDrone
+      return {
+        drones: updatedDrones,
+        selectedDrone: updatedSelectedDrone,
+      }
+    }),
   removeDrone: (id) =>
     set((state) => ({ drones: state.drones.filter((d) => d.id !== id) })),
 }))

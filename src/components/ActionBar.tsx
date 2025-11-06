@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Box, Paper, Button, Stack } from '@mui/material'
+import { Box, Paper, Button, Stack, Tooltip } from '@mui/material'
 import {
   Edit,
   CalendarToday,
@@ -16,6 +16,7 @@ import { useAppStore } from '@/lib/store'
 import { api } from '@/lib/api'
 import { ApiError } from '@/lib/api'
 import ScheduleModal from './ScheduleModal'
+import ConfirmationDialog from './ConfirmationDialog'
 
 interface ActionBarProps {
   onDrawingChange?: (drawing: boolean) => void
@@ -34,6 +35,11 @@ export default function ActionBar({ onDrawingChange }: ActionBarProps) {
 
   const [isScheduleOpen, setIsScheduleOpen] = useState(false)
   const [isDrawing, setIsDrawing] = useState(false)
+  const [confirmationDialog, setConfirmationDialog] = useState<{
+    open: boolean
+    title: string
+    message: string
+  }>({ open: false, title: '', message: '' })
 
   async function handleDrawPath() {
     if (!selectedDrone) {
@@ -46,7 +52,9 @@ export default function ActionBar({ onDrawingChange }: ActionBarProps) {
       onDrawingChange(newDrawingState)
     }
     if (!newDrawingState) {
+      // Clear path when stopping drawing
       setCurrentPath(null)
+      // Clear path on map will be handled by DroneMap cleanup
     }
   }
 
@@ -99,11 +107,34 @@ export default function ActionBar({ onDrawingChange }: ActionBarProps) {
 
     try {
       setIsLoading(true)
-      await api.droneAction(selectedDrone.id, action)
-      const updatedDrone = await api.getDrone(selectedDrone.id)
-      const { updateDrone, setSelectedDrone } = useAppStore.getState()
-      updateDrone(selectedDrone.id, updatedDrone)
-      setSelectedDrone(updatedDrone)
+      
+      // For demo: just update status and show confirmation
+      if (action === 'return_to_base') {
+        const { updateDrone, setSelectedDrone } = useAppStore.getState()
+        updateDrone(selectedDrone.id, { status: 'charging' })
+        setSelectedDrone({ ...selectedDrone, status: 'charging' })
+        setConfirmationDialog({
+          open: true,
+          title: 'Drone Returned to Base',
+          message: 'Drone returned to base and is now charging.',
+        })
+      } else if (action === 'end_early') {
+        const { updateDrone, setSelectedDrone } = useAppStore.getState()
+        updateDrone(selectedDrone.id, { status: 'not charging' })
+        setSelectedDrone({ ...selectedDrone, status: 'not charging' })
+        setConfirmationDialog({
+          open: true,
+          title: 'Flight Ended Early',
+          message: 'Flight ended early. Drone status set to not charging.',
+        })
+      } else {
+        // For other actions, try API call
+        await api.droneAction(selectedDrone.id, action)
+        const updatedDrone = await api.getDrone(selectedDrone.id)
+        const { updateDrone, setSelectedDrone } = useAppStore.getState()
+        updateDrone(selectedDrone.id, updatedDrone)
+        setSelectedDrone(updatedDrone)
+      }
     } catch (error) {
       setError(error instanceof Error ? error.message : 'Action failed')
     } finally {
@@ -173,15 +204,19 @@ export default function ActionBar({ onDrawingChange }: ActionBarProps) {
           >
             Return to Base
           </Button>
-          <Button
-            variant="outlined"
-            color="warning"
-            startIcon={<Warning />}
-            onClick={() => handleAction('intercept')}
-            disabled={!selectedDrone}
-          >
-            Intercept
-          </Button>
+          <Tooltip title="Camera feed not available in demo">
+            <span>
+              <Button
+                variant="outlined"
+                color="warning"
+                startIcon={<Warning />}
+                onClick={() => handleAction('intercept')}
+                disabled={true}
+              >
+                Intercept
+              </Button>
+            </span>
+          </Tooltip>
           <Button
             variant="outlined"
             color="error"
@@ -195,6 +230,12 @@ export default function ActionBar({ onDrawingChange }: ActionBarProps) {
       </Paper>
 
       <ScheduleModal isOpen={isScheduleOpen} onClose={() => setIsScheduleOpen(false)} />
+      <ConfirmationDialog
+        open={confirmationDialog.open}
+        title={confirmationDialog.title}
+        message={confirmationDialog.message}
+        onClose={() => setConfirmationDialog({ open: false, title: '', message: '' })}
+      />
     </>
   )
 }

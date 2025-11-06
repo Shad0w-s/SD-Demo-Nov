@@ -1,14 +1,27 @@
 'use client'
 
-import { useEffect, useState, useRef, Suspense } from 'react'
+import { useEffect, useState, useRef, Suspense, useMemo, useCallback } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { Box, CircularProgress } from '@mui/material'
 import AuthGuard from '@/components/AuthGuard'
 import NavigationToolbar from '@/components/NavigationToolbar'
 import Sidebar from '@/components/Sidebar'
-import DroneMap from '@/components/DroneMap'
-import VideoFeed from '@/components/VideoFeed'
+import dynamic from 'next/dynamic'
 import ActionBar from '@/components/ActionBar'
+
+// Dynamically import heavy components to improve initial load
+const DroneMap = dynamic(() => import('@/components/DroneMap'), {
+  ssr: false,
+  loading: () => (
+    <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
+      <CircularProgress />
+    </Box>
+  ),
+})
+
+const VideoFeed = dynamic(() => import('@/components/VideoFeed'), {
+  ssr: false,
+})
 import ErrorDisplay from '@/components/ErrorDisplay'
 import { useAppStore } from '@/lib/store'
 import { api } from '@/lib/api'
@@ -21,6 +34,7 @@ function DashboardContentInner() {
   const {
     setDrones,
     setBases,
+    setSchedules,
     setIsLoading,
     setError,
     selectedDrone,
@@ -35,49 +49,69 @@ function DashboardContentInner() {
   const simulationEngineRef = useRef<SimulationEngine | null>(null)
 
   useEffect(() => {
+    // Set mock data immediately for instant UI
+    setDrones(mockDrones)
+    setBases(mockBases)
+    setSchedules([]) // Initialize schedules
+    
+    // Then try to fetch from API in background (non-blocking)
     async function loadInitialData() {
       try {
         setIsLoading(true)
-        // Try to load from API, fallback to mock data
-        const [dronesData, basesData] = await Promise.all([
-          api.getDrones().catch(() => mockDrones),
-          api.getBases().catch(() => mockBases),
+        // Short timeout for API calls - load all data in parallel
+        const [dronesData, basesData, schedulesData] = await Promise.all([
+          api.getDrones().catch(() => null),
+          api.getBases().catch(() => null),
+          api.getSchedules().catch(() => null),
         ])
-        setDrones(dronesData || mockDrones)
-        setBases(basesData || mockBases)
+        // Only update if we got valid data
+        if (dronesData && dronesData.length > 0) {
+          setDrones(dronesData)
+        }
+        if (basesData && basesData.length > 0) {
+          setBases(basesData)
+        }
+        if (schedulesData && schedulesData.length > 0) {
+          setSchedules(schedulesData)
+        }
       } catch (error) {
-        // Fallback to mock data on error
-        setDrones(mockDrones)
-        setBases(mockBases)
+        // Silently fail - we already have mock data
+        console.warn('API fetch failed, using mock data:', error)
       } finally {
         setIsLoading(false)
       }
     }
 
+    // Load API data asynchronously (non-blocking)
     loadInitialData()
-  }, [setDrones, setBases, setIsLoading])
+  }, [setDrones, setBases, setIsLoading, setSchedules])
+
+  // Memoize drone and base selection logic
+  const selectedDroneMemo = useMemo(() => {
+    const droneId = searchParams?.get('drone')
+    if (!droneId) return null
+    
+    const { drones } = useAppStore.getState()
+    return drones.find((d) => d.id === droneId) || mockDrones.find((d) => d.id === droneId) || null
+  }, [searchParams])
+
+  const selectedBaseMemo = useMemo(() => {
+    const baseId = searchParams?.get('base')
+    if (!baseId) return null
+    
+    const { bases } = useAppStore.getState()
+    return bases.find((b) => b.id === baseId) || mockBases.find((b) => b.id === baseId) || null
+  }, [searchParams])
 
   // Handle query params for drone/base selection
   useEffect(() => {
-    const droneId = searchParams?.get('drone')
-    const baseId = searchParams?.get('base')
-    
-    if (droneId) {
-      const { drones } = useAppStore.getState()
-      const drone = drones.find((d) => d.id === droneId) || mockDrones.find((d) => d.id === droneId)
-      if (drone) {
-        setSelectedDrone(drone)
-      }
+    if (selectedDroneMemo) {
+      setSelectedDrone(selectedDroneMemo)
     }
-    
-    if (baseId) {
-      const { bases } = useAppStore.getState()
-      const base = bases.find((b) => b.id === baseId) || mockBases.find((b) => b.id === baseId)
-      if (base) {
-        setSelectedBase(base)
-      }
+    if (selectedBaseMemo) {
+      setSelectedBase(selectedBaseMemo)
     }
-  }, [searchParams, setSelectedDrone, setSelectedBase])
+  }, [selectedDroneMemo, selectedBaseMemo, setSelectedDrone, setSelectedBase])
 
   // Initialize simulation engine
   useEffect(() => {
@@ -85,6 +119,26 @@ function DashboardContentInner() {
       simulationEngineRef.current = new SimulationEngine()
     }
   }, [])
+
+  // Memoize simulation callback to prevent recreation
+  const handleSimulationUpdate = useCallback((update: any) => {
+    setSimulation({
+      isRunning: true,
+      speed: update.speed,
+      eta: update.timeRemaining,
+      telemetry: update.telemetry,
+      currentPosition: update.currentPosition,
+    })
+  }, [setSimulation])
+
+  const handleSimulationComplete = useCallback(() => {
+    setSimulation({
+      isRunning: false,
+      speed: undefined,
+      eta: 0,
+      telemetry: simulation?.telemetry,
+    })
+  }, [setSimulation, simulation?.telemetry])
 
   // Handle simulation updates
   useEffect(() => {
@@ -101,25 +155,8 @@ function DashboardContentInner() {
           heading_deg: 0,
           signal_strength: 100,
         },
-        (update) => {
-          // Update simulation state with real-time data
-          setSimulation({
-            isRunning: true,
-            speed: update.speed,
-            eta: update.timeRemaining,
-            telemetry: update.telemetry,
-            currentPosition: update.currentPosition,
-          })
-        },
-        () => {
-          // Simulation complete
-          setSimulation({
-            isRunning: false,
-            speed: undefined,
-            eta: 0,
-            telemetry: simulation.telemetry,
-          })
-        }
+        handleSimulationUpdate,
+        handleSimulationComplete
       )
 
       return () => {
@@ -128,7 +165,7 @@ function DashboardContentInner() {
     } else if (!simulation?.isRunning && simulationEngineRef.current) {
       simulationEngineRef.current.stop()
     }
-  }, [simulation?.isRunning, currentPath, simulation?.eta, setSimulation])
+  }, [simulation?.isRunning, currentPath, simulation?.eta, handleSimulationUpdate, handleSimulationComplete])
 
   return (
     <>

@@ -7,15 +7,25 @@ export interface ApiError {
   status?: number
 }
 
+// Create AbortController for timeout
+function createTimeoutController(timeoutMs: number = 2000): AbortController {
+  const controller = new AbortController()
+  setTimeout(() => controller.abort(), timeoutMs)
+  return controller
+}
+
 export async function apiRequest(
   endpoint: string,
-  options: RequestInit = {}
+  options: RequestInit = {},
+  timeoutMs: number = 2000
 ): Promise<any> {
   try {
     const token = await getAccessToken()
+    const controller = createTimeoutController(timeoutMs)
     
     const response = await fetch(`${API_BASE_URL}${endpoint}`, {
       ...options,
+      signal: controller.signal,
       headers: {
         'Content-Type': 'application/json',
         ...(token && { Authorization: `Bearer ${token}` }),
@@ -35,6 +45,14 @@ export async function apiRequest(
     return response.json()
   } catch (error) {
     if (error instanceof Error) {
+      // Handle timeout/abort errors
+      if (error.name === 'AbortError') {
+        const apiError: ApiError = {
+          message: 'Request timeout - using cached data',
+          status: 408,
+        }
+        throw apiError
+      }
       const apiError: ApiError = {
         message: error.message,
       }

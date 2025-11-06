@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, memo, useMemo } from 'react'
 import {
   Paper,
   Box,
@@ -22,7 +22,7 @@ import {
 } from '@mui/icons-material'
 import { useAppStore } from '@/lib/store'
 
-export default function VideoFeed() {
+function VideoFeedComponent() {
   const { selectedDrone, simulation } = useAppStore()
   const [progress, setProgress] = useState(0)
   const [timeRemaining, setTimeRemaining] = useState<number | null>(null)
@@ -263,3 +263,6 @@ export default function VideoFeed() {
     </Paper>
   )
 }
+
+// Memoize component to prevent unnecessary re-renders
+export default memo(VideoFeedComponent)

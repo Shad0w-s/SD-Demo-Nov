@@ -59,12 +59,21 @@ describe('Fleet Overview - Iteration 2', () => {
     it('should have correct drone distribution by status', async () => {
       const { mockDrones } = await import('@/lib/mockData')
       const active = mockDrones.filter((d) => d.status === 'active')
-      const simulated = mockDrones.filter((d) => d.status === 'simulated')
-      const inactive = mockDrones.filter((d) => d.status === 'inactive')
+      const patrolling = mockDrones.filter((d) => d.status === 'patrolling')
+      const charging = mockDrones.filter((d) => d.status === 'charging')
+      const notCharging = mockDrones.filter((d) => d.status === 'not charging')
       
       expect(active.length).toBeGreaterThanOrEqual(4)
-      expect(simulated.length).toBeGreaterThanOrEqual(4)
-      expect(inactive.length).toBeGreaterThanOrEqual(2)
+      expect(patrolling.length).toBeGreaterThanOrEqual(2)
+      expect(charging.length).toBeGreaterThanOrEqual(2)
+      expect(notCharging.length).toBeGreaterThanOrEqual(2)
+    })
+
+    it('should have all drones with Perch drones V1 model', async () => {
+      const { mockDrones } = await import('@/lib/mockData')
+      mockDrones.forEach((drone) => {
+        expect(drone.model).toBe('Perch drones V1')
+      })
     })
 
     it('should have helper functions for battery and location', async () => {

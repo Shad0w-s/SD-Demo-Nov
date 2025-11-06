@@ -181,7 +181,10 @@ describe('Phase 1: Authentication & Core Infrastructure', () => {
     })
 
     it('should return null token when no session', async () => {
-      const { getAccessToken } = await import('@/lib/supabaseClient')
+      // Clear token cache by reloading module
+      vi.resetModules()
+      const { getAccessToken, clearTokenCache } = await import('@/lib/supabaseClient')
+      clearTokenCache()
       
       mockGetSession.mockResolvedValue({
         data: { session: null },
@@ -262,6 +265,11 @@ describe('Phase 1: Authentication & Core Infrastructure', () => {
     })
 
     it('should make requests without token when not authenticated', async () => {
+      // Clear token cache
+      vi.resetModules()
+      const { clearTokenCache } = await import('@/lib/supabaseClient')
+      clearTokenCache()
+      
       const { apiRequest } = await import('@/lib/api')
       
       mockGetSession.mockResolvedValue({

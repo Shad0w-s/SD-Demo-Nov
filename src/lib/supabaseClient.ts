@@ -12,6 +12,17 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   }
 })
 
+// Token caching to reduce Supabase API calls
+let cachedToken: string | null = null
+let tokenExpiry: number = 0
+const TOKEN_CACHE_DURATION = 5 * 60 * 1000 // 5 minutes
+
+// Function to clear token cache (useful for testing)
+export function clearTokenCache() {
+  cachedToken = null
+  tokenExpiry = 0
+}
+
 // Session management helpers
 export async function getSession(): Promise<Session | null> {
   const { data: { session } } = await supabase.auth.getSession()
@@ -19,8 +30,16 @@ export async function getSession(): Promise<Session | null> {
 }
 
 export async function getAccessToken(): Promise<string | null> {
+  // Return cached token if valid
+  if (cachedToken && Date.now() < tokenExpiry) {
+    return cachedToken
+  }
+  
+  // Fetch new token
   const session = await getSession()
-  return session?.access_token || null
+  cachedToken = session?.access_token || null
+  tokenExpiry = Date.now() + TOKEN_CACHE_DURATION
+  return cachedToken
 }
 
 export async function getUser() {

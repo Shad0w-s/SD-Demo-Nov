@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation'
 import { AppBar, Toolbar, IconButton, Box, TextField, InputAdornment } from '@mui/material'
 import { ArrowBack, ArrowForward, Search } from '@mui/icons-material'
 import { useEffect, useState } from 'react'
+import LogoutButton from './LogoutButton'
 
 interface NavigationToolbarProps {
   searchValue?: string
@@ -85,6 +86,9 @@ export default function NavigationToolbar({
               }}
             />
           )}
+        </Box>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <LogoutButton />
         </Box>
       </Toolbar>
     </AppBar>

@@ -33,7 +33,7 @@ export const mockDrones: Drone[] = [
   {
     id: 'drone-1',
     name: 'Falcon-1',
-    model: 'FX-200',
+    model: 'Perch drones V1',
     base_id: 'base-1',
     status: 'active',
     user_id: 'user-1',
@@ -42,7 +42,7 @@ export const mockDrones: Drone[] = [
   {
     id: 'drone-2',
     name: 'Eagle-2',
-    model: 'FX-150',
+    model: 'Perch drones V1',
     base_id: 'base-1',
     status: 'active',
     user_id: 'user-1',
@@ -51,7 +51,7 @@ export const mockDrones: Drone[] = [
   {
     id: 'drone-3',
     name: 'Hawk-3',
-    model: 'FX-300',
+    model: 'Perch drones V1',
     base_id: 'base-2',
     status: 'active',
     user_id: 'user-2',
@@ -60,65 +60,66 @@ export const mockDrones: Drone[] = [
   {
     id: 'drone-4',
     name: 'Raven-4',
-    model: 'FX-250',
+    model: 'Perch drones V1',
     base_id: 'base-2',
     status: 'active',
     user_id: 'user-2',
     last_check_in: new Date(Date.now() - 1 * 60 * 1000).toISOString(), // 1 min ago
   },
-  // Simulated drones (4)
+  // Patrolling drones (2)
   {
     id: 'drone-5',
     name: 'Phoenix-5',
-    model: 'FX-200',
+    model: 'Perch drones V1',
     base_id: 'base-1',
-    status: 'simulated',
+    status: 'patrolling',
     user_id: 'user-1',
     last_check_in: new Date(Date.now() - 10 * 60 * 1000).toISOString(), // 10 min ago
   },
   {
     id: 'drone-6',
     name: 'Griffin-6',
-    model: 'FX-150',
+    model: 'Perch drones V1',
     base_id: 'base-3',
-    status: 'simulated',
+    status: 'patrolling',
     user_id: 'user-3',
     last_check_in: new Date(Date.now() - 15 * 60 * 1000).toISOString(), // 15 min ago
   },
+  // Charging drones (2)
   {
     id: 'drone-7',
     name: 'Sparrow-7',
-    model: 'FX-300',
+    model: 'Perch drones V1',
     base_id: 'base-3',
-    status: 'simulated',
+    status: 'charging',
     user_id: 'user-3',
     last_check_in: new Date(Date.now() - 8 * 60 * 1000).toISOString(), // 8 min ago
   },
   {
     id: 'drone-8',
     name: 'Swift-8',
-    model: 'FX-250',
+    model: 'Perch drones V1',
     base_id: 'base-2',
-    status: 'simulated',
+    status: 'charging',
     user_id: 'user-2',
     last_check_in: new Date(Date.now() - 12 * 60 * 1000).toISOString(), // 12 min ago
   },
-  // Inactive drones (2)
+  // Not charging drones (2)
   {
     id: 'drone-9',
     name: 'Dove-9',
-    model: 'FX-200',
+    model: 'Perch drones V1',
     base_id: 'base-1',
-    status: 'inactive',
+    status: 'not charging',
     user_id: 'user-1',
     last_check_in: new Date(Date.now() - 60 * 60 * 1000).toISOString(), // 1 hour ago
   },
   {
     id: 'drone-10',
     name: 'Crow-10',
-    model: 'FX-150',
+    model: 'Perch drones V1',
     base_id: 'base-3',
-    status: 'inactive',
+    status: 'not charging',
     user_id: 'user-3',
     last_check_in: new Date(Date.now() - 90 * 60 * 1000).toISOString(), // 1.5 hours ago
   },

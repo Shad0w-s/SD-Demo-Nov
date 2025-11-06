@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { usePathname } from 'next/navigation'
 import {
   Box,
   Paper,
@@ -18,13 +19,13 @@ import {
   Chip,
 } from '@mui/material'
 import { FlightTakeoff, FlightLand, Warning, Cancel } from '@mui/icons-material'
-import LogoutButton from './LogoutButton'
-import ThemeToggle from './ThemeToggle'
 import { useAppStore, Drone } from '@/lib/store'
 import { api } from '@/lib/api'
 import { ApiError } from '@/lib/api'
 
 export default function Sidebar() {
+  const pathname = usePathname()
+  const isDashboard = pathname === '/dashboard'
   const {
     drones,
     schedules,
@@ -36,32 +37,8 @@ export default function Sidebar() {
     setError,
   } = useAppStore()
 
-  const [isLoading, setIsLocalLoading] = useState(false)
-
-  useEffect(() => {
-    loadData()
-  }, [])
-
-  async function loadData() {
-    setIsLocalLoading(true)
-    setIsLoading(true)
-    try {
-      const [dronesData, schedulesData] = await Promise.all([
-        api.getDrones().catch((err: ApiError) => {
-          setError(err.message)
-          return []
-        }),
-        api.getSchedules().catch(() => []),
-      ])
-      setDrones(dronesData || [])
-      setSchedules(schedulesData || [])
-    } catch (error) {
-      setError(error instanceof Error ? error.message : 'Failed to load data')
-    } finally {
-      setIsLocalLoading(false)
-      setIsLoading(false)
-    }
-  }
+  // Sidebar now only reads from store - no blocking API calls
+  // Data is loaded by Dashboard component in background
 
   async function handleDroneSelect(e: any) {
     const droneId = e.target.value
@@ -97,16 +74,14 @@ export default function Sidebar() {
 
   const getStatusColor = (status: string) => {
     switch (status?.toLowerCase()) {
-      case 'active':
-      case 'flying':
-        return 'success'
-      case 'idle':
-      case 'simulated':
+      case 'charging':
         return 'info'
-      case 'returning':
+      case 'not charging':
+        return 'default'
+      case 'active':
+        return 'success'
+      case 'patrolling':
         return 'warning'
-      case 'error':
-        return 'error'
       default:
         return 'default'
     }
@@ -130,30 +105,28 @@ export default function Sidebar() {
           <Typography variant="h6" fontWeight="bold">
             Drone Control
           </Typography>
-          <Box sx={{ display: 'flex', gap: 1 }}>
-            <ThemeToggle />
-            <LogoutButton />
-          </Box>
         </Box>
 
-        <FormControl fullWidth size="small">
-          <InputLabel>Select Drone</InputLabel>
-          <Select
-            value={selectedDrone?.id || ''}
-            onChange={handleDroneSelect}
-            disabled={isLoading}
-            label="Select Drone"
-          >
-            <MenuItem value="">
-              <em>None</em>
-            </MenuItem>
-            {drones.map((drone) => (
-              <MenuItem key={drone.id} value={drone.id}>
-                {drone.name}
+        {!isDashboard && (
+          <FormControl fullWidth size="small">
+            <InputLabel>Select Drone</InputLabel>
+            <Select
+              value={selectedDrone?.id || ''}
+              onChange={handleDroneSelect}
+              disabled={isLoading}
+              label="Select Drone"
+            >
+              <MenuItem value="">
+                <em>None</em>
               </MenuItem>
-            ))}
-          </Select>
-        </FormControl>
+              {drones.map((drone) => (
+                <MenuItem key={drone.id} value={drone.id}>
+                  {drone.name}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+        )}
       </Box>
 
       {selectedDrone && (
@@ -176,9 +149,7 @@ export default function Sidebar() {
         <Typography variant="subtitle2" fontWeight="bold" gutterBottom>
           Schedule
         </Typography>
-        {isLoading ? (
-          <CircularProgress size={24} />
-        ) : schedules.length === 0 ? (
+        {schedules.length === 0 ? (
           <Typography variant="body2" color="text.secondary">
             No scheduled flights
           </Typography>

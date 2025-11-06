@@ -50,6 +50,11 @@ export default function ScheduleModal({ isOpen, onClose }: ScheduleModalProps) {
       return
     }
 
+    if (!currentPath || currentPath.length < 2) {
+      setError('Please draw a path on the map first. A path must have at least 2 waypoints.')
+      return
+    }
+
     try {
       setIsSubmitting(true)
       setIsLoading(true)
@@ -92,6 +97,11 @@ export default function ScheduleModal({ isOpen, onClose }: ScheduleModalProps) {
               Please select a drone first
             </Alert>
           )}
+          {(!currentPath || currentPath.length < 2) && (
+            <Alert severity="error" sx={{ mb: 2 }}>
+              Please draw a path on the map before scheduling. A path must have at least 2 waypoints.
+            </Alert>
+          )}
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: 1 }}>
             <TextField
               label="Start Time"
@@ -129,7 +139,7 @@ export default function ScheduleModal({ isOpen, onClose }: ScheduleModalProps) {
             type="submit"
             variant="contained"
             color="primary"
-            disabled={!selectedDrone || isSubmitting}
+            disabled={!selectedDrone || !currentPath || currentPath.length < 2 || isSubmitting}
             startIcon={isSubmitting ? <CircularProgress size={16} /> : null}
           >
             {isSubmitting ? 'Scheduling...' : 'Schedule Flight'}

@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, memo, useMemo, useCallback } from 'react'
 import { Box, Paper, Typography, Button, CircularProgress } from '@mui/material'
 import { useAppStore } from '@/lib/store'
 import type { MapInstance } from '@/lib/map'
@@ -10,63 +10,110 @@ interface DroneMapProps {
   onDrawingChange?: (drawing: boolean) => void
 }
 
-export default function DroneMap({ isDrawing = false, onDrawingChange }: DroneMapProps) {
+function DroneMapComponent({ isDrawing = false, onDrawingChange }: DroneMapProps) {
   const ref = useRef<HTMLDivElement>(null)
   const mapInstanceRef = useRef<MapInstance | null>(null)
   const mapUtilsRef = useRef<any>(null)
   const [isMapReady, setIsMapReady] = useState(false)
-  const { bases, selectedDrone, currentPath, setCurrentPath, simulation } = useAppStore()
+  const { bases, selectedDrone, currentPath, setCurrentPath, simulation, selectedBase } = useAppStore()
 
   useEffect(() => {
     if (!ref.current || mapInstanceRef.current || typeof window === 'undefined') return
 
     let mounted = true
 
-    // Dynamically import map utilities on client side only
-    import('@/lib/map').then(async (mapUtils) => {
-      if (!ref.current || !mounted) return
-      
-      mapUtilsRef.current = mapUtils
-      
-      try {
-        // Initialize map (with fallback)
-        const instance = await mapUtils.initializeMap(ref.current)
-        mapInstanceRef.current = instance
+    // Lazy load map initialization after a short delay to not block render
+    const initTimeout = setTimeout(() => {
+      // Dynamically import map utilities on client side only
+      import('@/lib/map').then(async (mapUtils) => {
+        if (!ref.current || !mounted) return
         
-        // Wait for map to be ready
-        instance.whenReady(() => {
+        mapUtilsRef.current = mapUtils
+        
+        try {
+          // Initialize map (with fallback)
+          const instance = await mapUtils.initializeMap(ref.current)
+          mapInstanceRef.current = instance
+          
+          // Wait for map to be ready
+          instance.whenReady(() => {
+            if (mounted) {
+              setIsMapReady(true)
+            }
+          })
+        } catch (error) {
+          console.error('Map initialization failed:', error)
           if (mounted) {
-            setIsMapReady(true)
+            setIsMapReady(true) // Show map even if there was an error
           }
-        })
-      } catch (error) {
-        console.error('Map initialization failed:', error)
-        if (mounted) {
-          setIsMapReady(true) // Show map even if there was an error
         }
-      }
-    })
+      })
+    }, 100) // Small delay to allow page to render first
 
     return () => {
+      clearTimeout(initTimeout)
       mounted = false
       if (mapInstanceRef.current) {
-        mapInstanceRef.current.remove()
+        try {
+          if (typeof mapInstanceRef.current.remove === 'function') {
+            mapInstanceRef.current.remove()
+          }
+        } catch (error) {
+          console.error('Error cleaning up map:', error)
+        }
         mapInstanceRef.current = null
       }
     }
   }, [])
-
-  // Add base markers
+  // Add base markers - show selected drone's base or all bases
   useEffect(() => {
-    if (!mapInstanceRef.current || !isMapReady || !bases.length || !mapUtilsRef.current) return
+    if (!mapInstanceRef.current || !isMapReady || !mapUtilsRef.current) return
 
     const addMarkers = async () => {
       try {
-        await mapUtilsRef.current.clearMarkers(mapInstanceRef.current)
+        // Only clear markers that are bases (not waypoints or drones)
+        const instance = mapInstanceRef.current
+        if (!instance) return
         
-        // Add new base markers
-        for (const base of bases) {
-          await mapUtilsRef.current.addBaseMarker(mapInstanceRef.current, base)
+        if (instance.type === 'arcgis') {
+          const baseGraphics = instance.markers.filter(
+            (m: any) => m.attributes?.type === 'base'
+          )
+          baseGraphics.forEach((m: any) => {
+            if (instance.graphicsLayer) {
+              instance.graphicsLayer.remove(m)
+            }
+          })
+          instance.markers = instance.markers.filter(
+            (m: any) => m.attributes?.type !== 'base'
+          )
+        } else {
+          const baseMarkers = instance.markers.filter(
+            (m: any) => m.options?.icon?.options?.className === 'custom-marker'
+          )
+          baseMarkers.forEach((m: any) => {
+            if (instance.leafletMap) {
+              instance.leafletMap.removeLayer(m)
+            }
+          })
+          instance.markers = instance.markers.filter(
+            (m: any) => m.options?.icon?.options?.className !== 'custom-marker'
+          )
+        }
+        
+        // Show selected drone's base if available, otherwise show all bases
+        if (selectedDrone?.base_id) {
+          const droneBase = bases.find((b) => b.id === selectedDrone.base_id)
+          if (droneBase) {
+            await mapUtilsRef.current.addBaseMarker(mapInstanceRef.current, droneBase)
+          }
+        } else if (selectedBase) {
+          await mapUtilsRef.current.addBaseMarker(mapInstanceRef.current, selectedBase)
+        } else if (bases.length > 0) {
+          // Show all bases if no specific selection
+          for (const base of bases) {
+            await mapUtilsRef.current.addBaseMarker(mapInstanceRef.current, base)
+          }
         }
       } catch (error) {
         console.error('Error adding base markers:', error)
@@ -74,7 +121,7 @@ export default function DroneMap({ isDrawing = false, onDrawingChange }: DroneMa
     }
 
     addMarkers()
-  }, [bases, isMapReady])
+  }, [bases, isMapReady, selectedDrone, selectedBase])
 
   // Add/update drone marker
   useEffect(() => {
@@ -133,19 +180,24 @@ export default function DroneMap({ isDrawing = false, onDrawingChange }: DroneMa
     addDrone()
   }, [selectedDrone, bases, isMapReady, simulation?.currentPosition, simulation?.isRunning])
 
-  // Add path
+  // Add/clear path
   useEffect(() => {
-    if (!mapInstanceRef.current || !isMapReady || !currentPath || !mapUtilsRef.current) return
+    if (!mapInstanceRef.current || !isMapReady || !mapUtilsRef.current) return
 
-    const addPath = async () => {
+    const updatePath = async () => {
       try {
-        await mapUtilsRef.current.addPathToMap(mapInstanceRef.current, currentPath)
+        if (currentPath && currentPath.length > 0) {
+          await mapUtilsRef.current.addPathToMap(mapInstanceRef.current, currentPath)
+        } else {
+          // Clear path if currentPath is null or empty
+          await mapUtilsRef.current.clearPath(mapInstanceRef.current)
+        }
       } catch (error) {
-        console.error('Error adding path:', error)
+        console.error('Error updating path:', error)
       }
     }
 
-    addPath()
+    updatePath()
   }, [currentPath, isMapReady])
 
   // Handle drawing mode
@@ -156,7 +208,6 @@ export default function DroneMap({ isDrawing = false, onDrawingChange }: DroneMa
       return
     }
 
-    const path: [number, number][] = currentPath || []
     let clickHandler: any = null
 
     const setupClickHandler = async () => {
@@ -168,7 +219,10 @@ export default function DroneMap({ isDrawing = false, onDrawingChange }: DroneMa
         const handleClick = async (event: any) => {
           const { longitude, latitude } = event.mapPoint
           const coord: [number, number] = [longitude, latitude]
-          const newPath = [...path, coord]
+          
+          // Read current path from store inside handler to avoid stale closure
+          const currentPathFromStore = useAppStore.getState().currentPath || []
+          const newPath = [...currentPathFromStore, coord]
           setCurrentPath(newPath)
 
           // Add temporary waypoint marker
@@ -188,7 +242,10 @@ export default function DroneMap({ isDrawing = false, onDrawingChange }: DroneMa
         // Leaflet event handling
         const handleClick = async (e: any) => {
           const coord: [number, number] = [e.latlng.lng, e.latlng.lat]
-          const newPath = [...path, coord]
+          
+          // Read current path from store inside handler to avoid stale closure
+          const currentPathFromStore = useAppStore.getState().currentPath || []
+          const newPath = [...currentPathFromStore, coord]
           setCurrentPath(newPath)
 
           // Add temporary waypoint marker
@@ -211,10 +268,47 @@ export default function DroneMap({ isDrawing = false, onDrawingChange }: DroneMa
 
     return () => {
       if (clickHandler) {
-        clickHandler.remove()
+        try {
+          clickHandler.remove()
+        } catch (error) {
+          console.error('Error removing click handler:', error)
+        }
+      }
+      
+      // Clear waypoint markers when stopping drawing
+      if (mapInstanceRef.current && mapUtilsRef.current) {
+        const instance = mapInstanceRef.current
+        try {
+          // Always clear waypoints when drawing stops (cleanup runs when isDrawing changes)
+          if (instance.type === 'arcgis' && instance.graphicsLayer) {
+            const waypointGraphics = instance.markers.filter(
+              (m: any) => m.attributes?.name === 'waypoint'
+            )
+            waypointGraphics.forEach((m: any) => {
+              instance.graphicsLayer.remove(m)
+            })
+            instance.markers = instance.markers.filter(
+              (m: any) => m.attributes?.name !== 'waypoint'
+            )
+          } else if (instance.type === 'osm' && instance.leafletMap) {
+            const waypointMarkers = instance.markers.filter(
+              (m: any) => m._popup?.content?.includes('waypoint') ||
+                         (m.options?.icon && m.options.icon.options?.html?.includes('waypoint'))
+            )
+            waypointMarkers.forEach((m: any) => {
+              instance.leafletMap.removeLayer(m)
+            })
+            instance.markers = instance.markers.filter(
+              (m: any) => !(m._popup?.content?.includes('waypoint') ||
+                           (m.options?.icon && m.options.icon.options?.html?.includes('waypoint')))
+            )
+          }
+        } catch (error) {
+          console.error('Error clearing waypoint markers:', error)
+        }
       }
     }
-  }, [isDrawing, currentPath, setCurrentPath, isMapReady])
+  }, [isDrawing, setCurrentPath, isMapReady])
 
   return (
     <Box sx={{ position: 'relative', height: '100%', width: '100%' }}>
@@ -276,3 +370,6 @@ export default function DroneMap({ isDrawing = false, onDrawingChange }: DroneMa
     </Box>
   )
 }
+
+// Memoize component to prevent unnecessary re-renders
+export default memo(DroneMapComponent)

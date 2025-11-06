@@ -44,15 +44,14 @@ vi.mock('@/lib/api', async () => {
 describe('Phase 3: Frontend Components', () => {
   describe('Theme System', () => {
     it('should have Material UI theme provider', async () => {
-      const { MUIThemeProviderWrapper, useMUITheme } = await import('@/lib/mui-theme')
+      const { MUIThemeProviderWrapper } = await import('@/lib/mui-theme')
       expect(MUIThemeProviderWrapper).toBeDefined()
-      expect(useMUITheme).toBeDefined()
     })
 
-    it('should toggle between light and dark mode', async () => {
-      const { useMUITheme } = await import('@/lib/mui-theme')
-      expect(useMUITheme).toBeDefined()
-      // Theme toggle functionality is tested in ThemeToggle component
+    // Theme toggle removed - app is dark mode only now
+    it('should use dark mode theme', async () => {
+      const { MUIThemeProviderWrapper } = await import('@/lib/mui-theme')
+      expect(MUIThemeProviderWrapper).toBeDefined()
     })
   })
 
@@ -162,10 +161,7 @@ describe('Phase 3: Frontend Components', () => {
       expect(ScheduleModal).toBeDefined()
     })
 
-    it('should have ThemeToggle component', async () => {
-      const ThemeToggle = (await import('@/components/ThemeToggle')).default
-      expect(ThemeToggle).toBeDefined()
-    })
+    // ThemeToggle removed - app is dark mode only now
 
     it('should have ErrorDisplay component', async () => {
       const ErrorDisplay = (await import('@/components/ErrorDisplay')).default

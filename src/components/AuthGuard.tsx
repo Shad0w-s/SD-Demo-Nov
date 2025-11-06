@@ -59,6 +59,11 @@ export default function AuthGuard({ children, requiredRole }: AuthGuardProps) {
       }
     }
 
+    // Show UI immediately, check auth in background
+    setIsLoading(false)
+    setIsAuthorized(true) // Optimistically show content
+    
+    // Check auth in background
     checkAuth()
 
     return () => {
@@ -66,26 +71,39 @@ export default function AuthGuard({ children, requiredRole }: AuthGuardProps) {
     }
   }, [router, pathname, requiredRole])
 
-  if (isLoading) {
+  // Show loading overlay instead of blocking
+  if (isLoading && !isAuthorized) {
     return (
       <Box
         sx={{
+          position: 'relative',
           minHeight: '100vh',
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
-          bgcolor: 'background.default',
-          gap: 2,
         }}
       >
-        <CircularProgress />
-        <Typography color="text.secondary">Loading...</Typography>
+        <Box
+          sx={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            bgcolor: 'background.default',
+            gap: 2,
+            zIndex: 9999,
+          }}
+        >
+          <CircularProgress />
+          <Typography color="text.secondary">Loading...</Typography>
+        </Box>
       </Box>
     )
   }
 
-  if (!isAuthorized) {
+  if (!isAuthorized && pathname !== '/auth/login' && pathname !== '/auth/register') {
     return null
   }
 

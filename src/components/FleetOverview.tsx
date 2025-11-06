@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, memo, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   Box,
@@ -35,7 +35,7 @@ interface FleetOverviewProps {
   searchQuery?: string
 }
 
-export default function FleetOverview({ searchQuery = '' }: FleetOverviewProps) {
+function FleetOverviewComponent({ searchQuery = '' }: FleetOverviewProps) {
   const router = useRouter()
   const { setSelectedDrone, setSelectedBase, setDrones, setBases } = useAppStore()
   const [statusFilter, setStatusFilter] = useState<string>('all')
@@ -73,15 +73,15 @@ export default function FleetOverview({ searchQuery = '' }: FleetOverviewProps) 
     })
   }, [bases, searchQuery])
 
-  const handleDroneClick = (drone: Drone) => {
+  const handleDroneClick = useCallback((drone: Drone) => {
     setSelectedDrone(drone)
     router.push(`/dashboard?drone=${drone.id}`)
-  }
+  }, [setSelectedDrone, router])
 
-  const handleBaseClick = (base: Base) => {
+  const handleBaseClick = useCallback((base: Base) => {
     setSelectedBase(base)
-    router.push(`/fleet/base/${base.id}`)
-  }
+    router.push(`/dashboard/base/${base.id}`)
+  }, [setSelectedBase, router])
 
   const getBatteryIcon = (battery: number) => {
     if (battery >= 80) return <Battery5Bar sx={{ color: 'success.main' }} />
@@ -94,12 +94,14 @@ export default function FleetOverview({ searchQuery = '' }: FleetOverviewProps) 
 
   const getStatusColor = (status: string) => {
     switch (status) {
+      case 'charging':
+        return 'info'
+      case 'not charging':
+        return 'default'
       case 'active':
         return 'success'
-      case 'simulated':
-        return 'info'
-      case 'inactive':
-        return 'default'
+      case 'patrolling':
+        return 'warning'
       default:
         return 'default'
     }
@@ -113,18 +115,93 @@ export default function FleetOverview({ searchQuery = '' }: FleetOverviewProps) 
     return drones.filter((d) => d.base_id === baseId).length
   }
 
+  // Calculate fleet statistics
+  const fleetStats = useMemo(() => {
+    const activeCount = drones.filter((d) => d.status === 'active' || d.status === 'patrolling').length
+    const chargingCount = drones.filter((d) => d.status === 'charging').length
+    return {
+      total: drones.length,
+      active: activeCount,
+      charging: chargingCount,
+      bases: bases.length,
+    }
+  }, [drones, bases])
+
   return (
     <Box sx={{ p: 3, bgcolor: 'background.default', minHeight: '100vh' }}>
+      {/* Hero Section with Statistics */}
+      <Paper
+        elevation={3}
+        sx={{
+          p: 4,
+          mb: 4,
+          background: 'linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%)',
+          color: 'white',
+          borderRadius: 3,
+          boxShadow: '0 8px 32px rgba(59, 130, 246, 0.3)',
+        }}
+      >
+        <Typography variant="h4" fontWeight="bold" gutterBottom>
+          Fleet Overview
+        </Typography>
+        <Typography variant="body1" sx={{ mb: 3, opacity: 0.9 }}>
+          Manage and monitor your entire drone fleet from one central dashboard
+        </Typography>
+        <Grid container spacing={3}>
+          <Grid item xs={6} sm={3}>
+            <Box sx={{ textAlign: 'center' }}>
+              <Typography variant="h3" fontWeight="bold">
+                {fleetStats.total}
+              </Typography>
+              <Typography variant="body2" sx={{ opacity: 0.9 }}>
+                Total Drones
+              </Typography>
+            </Box>
+          </Grid>
+          <Grid item xs={6} sm={3}>
+            <Box sx={{ textAlign: 'center' }}>
+              <Typography variant="h3" fontWeight="bold">
+                {fleetStats.active}
+              </Typography>
+              <Typography variant="body2" sx={{ opacity: 0.9 }}>
+                Active/Patrolling
+              </Typography>
+            </Box>
+          </Grid>
+          <Grid item xs={6} sm={3}>
+            <Box sx={{ textAlign: 'center' }}>
+              <Typography variant="h3" fontWeight="bold">
+                {fleetStats.charging}
+              </Typography>
+              <Typography variant="body2" sx={{ opacity: 0.9 }}>
+                Charging
+              </Typography>
+            </Box>
+          </Grid>
+          <Grid item xs={6} sm={3}>
+            <Box sx={{ textAlign: 'center' }}>
+              <Typography variant="h3" fontWeight="bold">
+                {fleetStats.bases}
+              </Typography>
+              <Typography variant="body2" sx={{ opacity: 0.9 }}>
+                Bases
+              </Typography>
+            </Box>
+          </Grid>
+        </Grid>
+      </Paper>
+
       {/* Filters */}
-      <Paper elevation={2} sx={{ p: 2, mb: 3 }}>
+      <Paper elevation={2} sx={{ p: 2, mb: 3, borderRadius: 2 }}>
         <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
           <FormControl size="small" sx={{ minWidth: 150 }}>
             <InputLabel>Status</InputLabel>
             <Select value={statusFilter} label="Status" onChange={(e) => setStatusFilter(e.target.value)}>
               <MenuItem value="all">All Status</MenuItem>
+              <MenuItem value="charging">Charging</MenuItem>
+              <MenuItem value="not charging">Not Charging</MenuItem>
               <MenuItem value="active">Active</MenuItem>
-              <MenuItem value="simulated">Simulated</MenuItem>
-              <MenuItem value="inactive">Inactive</MenuItem>
+              <MenuItem value="patrolling">Patrolling</MenuItem>
             </Select>
           </FormControl>
           <FormControl size="small" sx={{ minWidth: 150 }}>
@@ -158,9 +235,10 @@ export default function FleetOverview({ searchQuery = '' }: FleetOverviewProps) 
                   height: '100%',
                   cursor: 'pointer',
                   transition: 'transform 0.2s, box-shadow 0.2s',
+                  borderRadius: 3,
                   '&:hover': {
                     transform: 'translateY(-4px)',
-                    boxShadow: 6,
+                    boxShadow: 8,
                   },
                 }}
                 onClick={() => handleDroneClick(drone)}
@@ -234,9 +312,10 @@ export default function FleetOverview({ searchQuery = '' }: FleetOverviewProps) 
                   height: '100%',
                   cursor: 'pointer',
                   transition: 'transform 0.2s, box-shadow 0.2s',
+                  borderRadius: 3,
                   '&:hover': {
                     transform: 'translateY(-4px)',
-                    boxShadow: 6,
+                    boxShadow: 8,
                   },
                 }}
                 onClick={() => handleBaseClick(base)}
@@ -296,4 +375,7 @@ export default function FleetOverview({ searchQuery = '' }: FleetOverviewProps) 
     </Box>
   )
 }
+
+// Memoize component to prevent unnecessary re-renders
+export default memo(FleetOverviewComponent)
 

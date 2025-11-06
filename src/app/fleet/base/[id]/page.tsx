@@ -93,12 +93,14 @@ export default function BaseDetailPage() {
 
   const getStatusColor = (status: string) => {
     switch (status) {
+      case 'charging':
+        return 'info'
+      case 'not charging':
+        return 'default'
       case 'active':
         return 'success'
-      case 'simulated':
-        return 'info'
-      case 'inactive':
-        return 'default'
+      case 'patrolling':
+        return 'warning'
       default:
         return 'default'
     }
