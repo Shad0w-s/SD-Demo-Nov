@@ -43,13 +43,13 @@ export default function ScheduleModal({ isOpen, onClose }: ScheduleModalProps) {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
 
-    if (!selectedDrone) {
-      setError('Please select a drone first')
+    if (!date || !time) {
+      setError('Date and time are required')
       return
     }
 
-    if (!date || !time) {
-      setError('Date and time are required')
+    if (!selectedDrone) {
+      setError('Please select a drone first')
       return
     }
 

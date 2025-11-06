@@ -40,7 +40,7 @@ export default function LoginPage() {
       }
 
       if (data.session) {
-        router.push('/dashboard')
+        router.push('/fleet')
         router.refresh()
       }
     } catch (err) {

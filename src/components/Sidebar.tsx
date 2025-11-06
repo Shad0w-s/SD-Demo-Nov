@@ -18,7 +18,6 @@ import {
   Divider,
   Chip,
 } from '@mui/material'
-import { FlightLand, Warning, Cancel } from '@mui/icons-material'
 import { useAppStore, Drone } from '@/lib/store'
 import { api } from '@/lib/api'
 import { ApiError } from '@/lib/api'
@@ -52,37 +51,6 @@ export default function Sidebar() {
     setSelectedDrone(drone || null)
   }
 
-  async function handleQuickAction(action: string) {
-    if (!selectedDrone) {
-      setError('Please select a drone first')
-      return
-    }
-
-    try {
-      setIsLoading(true)
-      
-      if (action === 'return_to_base') {
-        const { updateDrone, setSelectedDrone } = useAppStore.getState()
-        updateDrone(selectedDrone.id, { status: 'charging' })
-        setSelectedDrone({ ...selectedDrone, status: 'charging' })
-      } else if (action === 'end_early') {
-        const { updateDrone, setSelectedDrone } = useAppStore.getState()
-        updateDrone(selectedDrone.id, { status: 'not charging' })
-        setSelectedDrone({ ...selectedDrone, status: 'not charging' })
-      } else {
-        // For other actions, try API call
-        await api.droneAction(selectedDrone.id, action)
-        const updatedDrone = await api.getDrone(selectedDrone.id)
-        const { updateDrone, setSelectedDrone } = useAppStore.getState()
-        updateDrone(selectedDrone.id, updatedDrone)
-        setSelectedDrone(updatedDrone)
-      }
-    } catch (error) {
-      setError(error instanceof Error ? error.message : 'Action failed')
-    } finally {
-      setIsLoading(false)
-    }
-  }
 
 
   const getStatusColor = (status: string) => {
@@ -222,47 +190,6 @@ export default function Sidebar() {
               })}
           </List>
         )}
-      </Box>
-
-      <Box sx={{ p: 2, borderTop: 1, borderColor: 'divider' }}>
-        <Typography variant="subtitle2" fontWeight="bold" gutterBottom>
-          Quick Actions
-        </Typography>
-        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-          <Button
-            variant="contained"
-            color="error"
-            startIcon={<FlightLand />}
-            onClick={() => handleQuickAction('return_to_base')}
-            disabled={!selectedDrone || isLoading}
-            fullWidth
-            size="small"
-          >
-            Return to Base
-          </Button>
-          <Button
-            variant="outlined"
-            color="warning"
-            startIcon={<Warning />}
-            onClick={() => {}}
-            disabled={true}
-            fullWidth
-            size="small"
-          >
-            Intercept
-          </Button>
-          <Button
-            variant="contained"
-            color="error"
-            startIcon={<Cancel />}
-            onClick={() => handleQuickAction('end_early')}
-            disabled={!selectedDrone || isLoading}
-            fullWidth
-            size="small"
-          >
-            End Early
-          </Button>
-        </Box>
       </Box>
     </Paper>
   )

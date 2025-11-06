@@ -31,10 +31,6 @@ export default function ActionBar({ onDrawingChange }: ActionBarProps) {
   const [isDrawing, setIsDrawing] = useState(false)
 
   async function handleDrawPath() {
-    if (!selectedDrone) {
-      setError('Please select a drone first')
-      return
-    }
     const newDrawingState = !isDrawing
     setIsDrawing(newDrawingState)
     if (onDrawingChange) {
@@ -106,7 +102,6 @@ export default function ActionBar({ onDrawingChange }: ActionBarProps) {
             color={isDrawing ? 'error' : 'primary'}
             startIcon={<Edit />}
             onClick={handleDrawPath}
-            disabled={!selectedDrone}
           >
             {isDrawing ? 'Stop Drawing' : 'Draw Path'}
           </Button>
@@ -115,7 +110,6 @@ export default function ActionBar({ onDrawingChange }: ActionBarProps) {
             color="success"
             startIcon={<CalendarToday />}
             onClick={() => setIsScheduleOpen(true)}
-            disabled={!selectedDrone}
           >
             Schedule Flight
           </Button>

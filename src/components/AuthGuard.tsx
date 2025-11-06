@@ -38,7 +38,7 @@ export default function AuthGuard({ children, requiredRole }: AuthGuardProps) {
           if (!isMounted) return
 
           if (role !== 'admin') {
-            router.replace('/dashboard')
+            router.replace('/fleet')
             setIsLoading(false)
             return
           }

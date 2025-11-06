@@ -57,7 +57,7 @@ export default function RegisterPage() {
       }
 
       if (data.session) {
-        router.push('/dashboard')
+        router.push('/fleet')
         router.refresh()
       } else {
         setError('Please check your email to confirm your account')

@@ -2,7 +2,7 @@
 
 import { useRouter } from 'next/navigation'
 import { AppBar, Toolbar, IconButton, Box, TextField, InputAdornment } from '@mui/material'
-import { ArrowBack, ArrowForward, Search } from '@mui/icons-material'
+import { ArrowBack, ArrowForward, Search, Home } from '@mui/icons-material'
 import { useEffect, useState } from 'react'
 import LogoutButton from './LogoutButton'
 
@@ -58,6 +58,14 @@ export default function NavigationToolbar({
     <AppBar position="sticky" elevation={2} sx={{ zIndex: 1100 }}>
       <Toolbar>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flexGrow: 1 }}>
+          <IconButton
+            color="inherit"
+            onClick={() => router.push('/fleet')}
+            aria-label="Go to fleet overview"
+            title="Fleet Overview"
+          >
+            <Home />
+          </IconButton>
           {(showBack || canGoBack) && (
             <IconButton
               color="inherit"
