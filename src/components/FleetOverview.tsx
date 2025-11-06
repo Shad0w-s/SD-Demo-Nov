@@ -148,7 +148,7 @@ function FleetOverviewComponent({ searchQuery = '' }: FleetOverviewProps) {
           Manage and monitor your entire drone fleet from one central dashboard
         </Typography>
         <Grid container spacing={3}>
-          <Grid item xs={6} sm={3}>
+          <Grid size={{ xs: 6, sm: 3 }}>
             <Box sx={{ textAlign: 'center' }}>
               <Typography variant="h3" fontWeight="bold">
                 {fleetStats.total}
@@ -158,7 +158,7 @@ function FleetOverviewComponent({ searchQuery = '' }: FleetOverviewProps) {
               </Typography>
             </Box>
           </Grid>
-          <Grid item xs={6} sm={3}>
+          <Grid size={{ xs: 6, sm: 3 }}>
             <Box sx={{ textAlign: 'center' }}>
               <Typography variant="h3" fontWeight="bold">
                 {fleetStats.active}
@@ -168,7 +168,7 @@ function FleetOverviewComponent({ searchQuery = '' }: FleetOverviewProps) {
               </Typography>
             </Box>
           </Grid>
-          <Grid item xs={6} sm={3}>
+          <Grid size={{ xs: 6, sm: 3 }}>
             <Box sx={{ textAlign: 'center' }}>
               <Typography variant="h3" fontWeight="bold">
                 {fleetStats.charging}
@@ -178,7 +178,7 @@ function FleetOverviewComponent({ searchQuery = '' }: FleetOverviewProps) {
               </Typography>
             </Box>
           </Grid>
-          <Grid item xs={6} sm={3}>
+          <Grid size={{ xs: 6, sm: 3 }}>
             <Box sx={{ textAlign: 'center' }}>
               <Typography variant="h3" fontWeight="bold">
                 {fleetStats.bases}
@@ -229,7 +229,7 @@ function FleetOverviewComponent({ searchQuery = '' }: FleetOverviewProps) {
           const location = base ? getLocationName(base) : 'No base assigned'
 
           return (
-            <Grid item xs={12} sm={6} md={4} lg={3} key={drone.id}>
+            <Grid size={{ xs: 12, sm: 6, md: 4, lg: 3 }} key={drone.id}>
               <Card
                 sx={{
                   height: '100%',
@@ -306,7 +306,7 @@ function FleetOverviewComponent({ searchQuery = '' }: FleetOverviewProps) {
           const location = getLocationName(base)
 
           return (
-            <Grid item xs={12} sm={6} md={4} key={base.id}>
+            <Grid size={{ xs: 12, sm: 6, md: 4 }} key={base.id}>
               <Card
                 sx={{
                   height: '100%',
