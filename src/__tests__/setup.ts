@@ -1,6 +1,10 @@
 // Test setup file
+import React from 'react'
 import { vi } from 'vitest'
 import '@testing-library/jest-dom'
+
+// Make React available globally for JSX
+global.React = React
 
 // Mock ArcGIS Maps SDK for testing
 vi.mock('@arcgis/core/Map', () => ({

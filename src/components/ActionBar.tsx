@@ -129,7 +129,11 @@ export default function ActionBar({ onDrawingChange }: ActionBarProps) {
               color="secondary"
               startIcon={<PlayArrow />}
               onClick={handleStartSimulation}
-              disabled={!selectedDrone || !currentPath}
+              disabled={true}
+              sx={{
+                opacity: 0.5,
+                cursor: 'not-allowed',
+              }}
             >
               Start Simulation
             </Button>
@@ -137,7 +141,16 @@ export default function ActionBar({ onDrawingChange }: ActionBarProps) {
         </Stack>
       </Paper>
 
-      <ScheduleModal isOpen={isScheduleOpen} onClose={() => setIsScheduleOpen(false)} />
+      <ScheduleModal 
+        isOpen={isScheduleOpen} 
+        onClose={() => setIsScheduleOpen(false)}
+        onDrawingChange={(drawing) => {
+          setIsDrawing(drawing)
+          if (onDrawingChange) {
+            onDrawingChange(drawing)
+          }
+        }}
+      />
     </>
   )
 }

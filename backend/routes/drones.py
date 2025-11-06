@@ -41,18 +41,11 @@ def get_drone(
     db: Session = Depends(get_db)
 ):
     """Get a single drone by ID"""
-    try:
-        drone_uuid = uuid.UUID(drone_id)
-    except ValueError:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid drone ID format"
-        )
-    
     user_id = current_user.get('sub')
     role = current_user.get('user_metadata', {}).get('role', 'user')
     
-    drone = db.query(Drone).filter(Drone.id == drone_uuid).first()
+    # IDs are now strings, no UUID parsing needed
+    drone = db.query(Drone).filter(Drone.id == drone_id).first()
     
     if not drone:
         raise HTTPException(
@@ -91,7 +84,7 @@ def create_drone(
         drone = Drone(
             name=drone_data.name,
             model=drone_data.model,
-            user_id=uuid.UUID(current_user.get('sub')),
+            user_id=current_user.get('sub'),  # user_id is now a string
             base_id=base_id,
             status=drone_data.status or 'simulated'
         )
@@ -120,18 +113,11 @@ def update_drone(
     db: Session = Depends(get_db)
 ):
     """Update a drone"""
-    try:
-        drone_uuid = uuid.UUID(drone_id)
-    except ValueError:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid drone ID format"
-        )
-    
     user_id = current_user.get('sub')
     role = current_user.get('user_metadata', {}).get('role', 'user')
     
-    drone = db.query(Drone).filter(Drone.id == drone_uuid).first()
+    # IDs are now strings, no UUID parsing needed
+    drone = db.query(Drone).filter(Drone.id == drone_id).first()
     
     if not drone:
         raise HTTPException(
@@ -176,18 +162,11 @@ def delete_drone(
     db: Session = Depends(get_db)
 ):
     """Delete a drone"""
-    try:
-        drone_uuid = uuid.UUID(drone_id)
-    except ValueError:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid drone ID format"
-        )
-    
     user_id = current_user.get('sub')
     role = current_user.get('user_metadata', {}).get('role', 'user')
     
-    drone = db.query(Drone).filter(Drone.id == drone_uuid).first()
+    # IDs are now strings, no UUID parsing needed
+    drone = db.query(Drone).filter(Drone.id == drone_id).first()
     
     if not drone:
         raise HTTPException(
@@ -214,15 +193,8 @@ def simulate_path(
     db: Session = Depends(get_db)
 ):
     """Return mock drone path for simulation"""
-    try:
-        drone_uuid = uuid.UUID(drone_id)
-    except ValueError:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid drone ID format"
-        )
-    
-    drone = db.query(Drone).filter(Drone.id == drone_uuid).first()
+    # IDs are now strings, no UUID parsing needed
+    drone = db.query(Drone).filter(Drone.id == drone_id).first()
     
     if not drone:
         raise HTTPException(
@@ -287,15 +259,8 @@ def drone_action(
     db: Session = Depends(get_db)
 ):
     """Trigger simulated drone action"""
-    try:
-        drone_uuid = uuid.UUID(drone_id)
-    except ValueError:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid drone ID format"
-        )
-    
-    drone = db.query(Drone).filter(Drone.id == drone_uuid).first()
+    # IDs are now strings, no UUID parsing needed
+    drone = db.query(Drone).filter(Drone.id == drone_id).first()
     
     if not drone:
         raise HTTPException(

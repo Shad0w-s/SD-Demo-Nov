@@ -39,14 +39,15 @@ export default function NavigationToolbar({
   }, [])
 
   const handleBack = () => {
-    // Only go back if there's actual history (not from registration/login)
     if (typeof window !== 'undefined') {
-      const currentPath = window.location.pathname
-      // If we're on dashboard and came from auth, do nothing
-      if (currentPath === '/dashboard' && window.history.length <= 2) {
-        return // Don't go back to login/register
+      // Use browser's native back navigation
+      // This will go to the actual previous page in history
+      if (window.history.length > 1) {
+        router.back()
+      } else {
+        // If no history, go to fleet as fallback
+        router.push('/fleet')
       }
-      router.back()
     }
   }
 

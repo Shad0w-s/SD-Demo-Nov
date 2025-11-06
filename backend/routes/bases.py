@@ -27,15 +27,8 @@ def get_base(
     db: Session = Depends(get_db)
 ):
     """Get a single base by ID"""
-    try:
-        base_uuid = uuid.UUID(base_id)
-    except ValueError:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid base ID format"
-        )
-    
-    base = db.query(DroneBase).filter(DroneBase.id == base_uuid).first()
+    # IDs are now strings, no UUID parsing needed
+    base = db.query(DroneBase).filter(DroneBase.id == base_id).first()
     
     if not base:
         raise HTTPException(
@@ -83,15 +76,8 @@ def update_base(
     db: Session = Depends(get_db)
 ):
     """Update a base"""
-    try:
-        base_uuid = uuid.UUID(base_id)
-    except ValueError:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid base ID format"
-        )
-    
-    base = db.query(DroneBase).filter(DroneBase.id == base_uuid).first()
+    # IDs are now strings, no UUID parsing needed
+    base = db.query(DroneBase).filter(DroneBase.id == base_id).first()
     
     if not base:
         raise HTTPException(
@@ -121,15 +107,8 @@ def delete_base(
     db: Session = Depends(get_db)
 ):
     """Delete a base"""
-    try:
-        base_uuid = uuid.UUID(base_id)
-    except ValueError:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid base ID format"
-        )
-    
-    base = db.query(DroneBase).filter(DroneBase.id == base_uuid).first()
+    # IDs are now strings, no UUID parsing needed
+    base = db.query(DroneBase).filter(DroneBase.id == base_id).first()
     
     if not base:
         raise HTTPException(
@@ -138,7 +117,7 @@ def delete_base(
         )
     
     # Check if base has drones assigned
-    drone_count = db.query(Drone).filter(Drone.base_id == base_uuid).count()
+    drone_count = db.query(Drone).filter(Drone.base_id == base_id).count()
     if drone_count > 0:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,

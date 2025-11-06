@@ -1,10 +1,8 @@
 import type { Metadata } from 'next'
 import { Inter } from 'next/font/google'
 import '../styles/globals.css'
-// ArcGIS CSS (primary)
+// ArcGIS CSS
 import '@arcgis/core/assets/esri/themes/light/main.css'
-// Leaflet CSS (fallback)
-import 'leaflet/dist/leaflet.css'
 import { MUIThemeProviderWrapper } from '@/lib/mui-theme'
 
 const inter = Inter({ subsets: ['latin'], display: 'swap' })

@@ -45,8 +45,30 @@ export async function getAccessToken(): Promise<string | null> {
     return cachedToken
   }
   
-  // Fetch new token
+  // Fetch new token from Supabase
   const session = await getSession()
+  
+  // If no Supabase session and we're in development (no real Supabase config),
+  // use a demo token for local testing
+  if (!session && (!supabaseUrl || supabaseUrl === '' || supabaseUrl.includes('placeholder'))) {
+    console.log('[Auth] No Supabase session - using demo token for local development')
+    // Create a simple JWT-like structure that the backend's dev mode will accept
+    // The backend only checks for 'sub' field in dev mode
+    const demoPayload = {
+      sub: 'demo-user-1', // Matches the user_id in our seed data
+      email: 'demo@example.com',
+      user_metadata: { role: 'user' },
+      iat: Math.floor(Date.now() / 1000),
+      exp: Math.floor(Date.now() / 1000) + 3600
+    }
+    // Base64 encode the payload (simplified JWT for demo)
+    cachedToken = `demo.${btoa(JSON.stringify(demoPayload))}.demo`
+    tokenExpiry = Date.now() + TOKEN_CACHE_DURATION
+    console.log('[Auth] Demo token created:', cachedToken.substring(0, 50) + '...')
+    console.log('[Auth] Demo payload:', demoPayload)
+    return cachedToken
+  }
+  
   cachedToken = session?.access_token || null
   tokenExpiry = Date.now() + TOKEN_CACHE_DURATION
   return cachedToken
@@ -54,6 +76,16 @@ export async function getAccessToken(): Promise<string | null> {
 
 export async function getUser() {
   const { data: { user } } = await supabase.auth.getUser()
+  
+  // If no user and we're in development, return demo user
+  if (!user && (!supabaseUrl || supabaseUrl === '' || supabaseUrl.includes('placeholder'))) {
+    return {
+      id: 'demo-user-1',
+      email: 'demo@example.com',
+      user_metadata: { role: 'user' }
+    } as any
+  }
+  
   return user
 }
 

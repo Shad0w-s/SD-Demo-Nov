@@ -164,8 +164,8 @@ describe('Schedule Integration - Simplified UX', () => {
         path_json: undefined,
       }
       
-      const hasRoute = scheduleWithoutPath.path_json?.coordinates && 
-        scheduleWithoutPath.path_json.coordinates.length >= 2
+      const hasRoute = !!(scheduleWithoutPath.path_json?.coordinates && 
+        scheduleWithoutPath.path_json.coordinates.length >= 2)
       
       expect(hasRoute).toBe(false)
     })

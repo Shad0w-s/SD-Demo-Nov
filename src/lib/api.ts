@@ -1,6 +1,12 @@
 import { getAccessToken } from './supabaseClient'
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000'
+// Default to 127.0.0.1 on port 8000 (avoiding macOS AirPlay on port 5000)
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://127.0.0.1:8000'
+
+// Log API base URL on module load (for debugging)
+if (typeof window !== 'undefined') {
+  console.log('[API] Base URL:', API_BASE_URL)
+}
 
 export interface ApiError {
   message: string
@@ -17,13 +23,16 @@ function createTimeoutController(timeoutMs: number = 1000): AbortController {
 export async function apiRequest(
   endpoint: string,
   options: RequestInit = {},
-  timeoutMs: number = 1000
+  timeoutMs: number = 10000
 ): Promise<any> {
+  const fullUrl = `${API_BASE_URL}${endpoint}`
+  console.log(`[API] ${options.method || 'GET'} ${fullUrl}`)
+  
   try {
     const token = await getAccessToken()
     const controller = createTimeoutController(timeoutMs)
     
-    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+    const response = await fetch(fullUrl, {
       ...options,
       signal: controller.signal,
       headers: {
@@ -34,9 +43,10 @@ export async function apiRequest(
     })
 
     if (!response.ok) {
-      const errorData = await response.json().catch(() => ({ error: response.statusText }))
+      // FastAPI returns errors with 'detail' field, not 'error' or 'message'
+      const errorData = await response.json().catch(() => ({ detail: response.statusText }))
       const error: ApiError = {
-        message: errorData.error || errorData.message || response.statusText,
+        message: errorData.detail || errorData.error || errorData.message || response.statusText,
         status: response.status,
       }
       throw error
@@ -50,6 +60,17 @@ export async function apiRequest(
         const apiError: ApiError = {
           message: 'Request timeout - using cached data',
           status: 408,
+        }
+        throw apiError
+      }
+      // Handle network/CORS errors
+      if (error.message.includes('Failed to fetch') || 
+          error.message.includes('NetworkError') ||
+          error.message.includes('CORS') ||
+          error.message.includes('access control')) {
+        const apiError: ApiError = {
+          message: 'Network error: Unable to connect to backend. Please check if the server is running and CORS is configured correctly.',
+          status: 0,
         }
         throw apiError
       }

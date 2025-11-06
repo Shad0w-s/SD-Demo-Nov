@@ -54,7 +54,7 @@ class BaseResponse(BaseBase):
 
 # Schedule Schemas
 class ScheduleBase(BaseModel):
-    drone_id: UUID
+    drone_id: str  # Accept string IDs for demo (e.g., 'drone-1')
     start_time: datetime
     end_time: Optional[datetime] = None
     path_json: Optional[Dict[str, Any]] = None

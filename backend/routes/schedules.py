@@ -23,9 +23,9 @@ def get_schedules(
     if role == 'admin':
         schedules = db.query(Schedule).all()
     else:
-        # Get schedules for user's drones
+        # Get schedules for user's drones (user_id is now a string)
         schedules = db.query(Schedule).join(Drone).filter(
-            Drone.user_id == uuid.UUID(user_id)
+            Drone.user_id == user_id
         ).all()
     
     return schedules
@@ -37,18 +37,11 @@ def get_schedule(
     db: Session = Depends(get_db)
 ):
     """Get a single schedule by ID"""
-    try:
-        schedule_uuid = uuid.UUID(schedule_id)
-    except ValueError:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid schedule ID format"
-        )
-    
     user_id = current_user.get('sub')
     role = current_user.get('user_metadata', {}).get('role', 'user')
     
-    schedule = db.query(Schedule).filter(Schedule.id == schedule_uuid).first()
+    # IDs are now strings, no UUID parsing needed
+    schedule = db.query(Schedule).filter(Schedule.id == schedule_id).first()
     
     if not schedule:
         raise HTTPException(
@@ -73,10 +66,20 @@ def create_schedule(
     db: Session = Depends(get_db)
 ):
     """Create a new schedule"""
+    print("[SCHEDULES] Received schedule creation request")
+    print(f"[SCHEDULES] Drone ID: {schedule_data.drone_id}")
+    print(f"[SCHEDULES] Start Time: {schedule_data.start_time}")
+    print(f"[SCHEDULES] End Time: {schedule_data.end_time}")
+    print(f"[SCHEDULES] Path JSON: {schedule_data.path_json}")
+    
     try:
         # Check authorization
         user_id = current_user.get('sub')
         role = current_user.get('user_metadata', {}).get('role', 'user')
+        
+        print(f"[SCHEDULES] User ID from token: {user_id}")
+        print(f"[SCHEDULES] User role: {role}")
+        
         drone = db.query(Drone).filter(Drone.id == schedule_data.drone_id).first()
         
         if not drone:
@@ -85,7 +88,16 @@ def create_schedule(
                 detail="Drone not found"
             )
         
-        if role != 'admin' and str(drone.user_id) != user_id:
+        print(f"[SCHEDULES] Drone user_id: {drone.user_id}")
+        print(f"[SCHEDULES] Comparing: str('{drone.user_id}') != '{user_id}'")
+        
+        # In development mode (no Supabase configured), allow all users to access any drone
+        import os
+        is_dev_mode = not os.getenv('SUPABASE_JWT_SECRET', '')
+        
+        if is_dev_mode:
+            print(f"[SCHEDULES] Development mode - skipping ownership check")
+        elif role != 'admin' and str(drone.user_id) != user_id:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Access denied"
@@ -100,15 +112,61 @@ def create_schedule(
         db.add(schedule)
         db.commit()
         db.refresh(schedule)
+        
+        # Log schedule creation to terminal
+        print("=" * 50)
+        print("=== Schedule Created ===")
+        print(f"Schedule ID: {schedule.id}")
+        print(f"Drone ID: {schedule.drone_id}")
+        print(f"Drone Name: {drone.name}")
+        print(f"Start Time: {schedule.start_time}")
+        print(f"End Time: {schedule.end_time}")
+        
+        # Calculate duration
+        if schedule.start_time and schedule.end_time:
+            duration_seconds = (schedule.end_time - schedule.start_time).total_seconds()
+            duration_minutes = int(duration_seconds / 60)
+            print(f"Duration: {duration_minutes} minutes")
+        
+        # Log base information if available
+        if drone.base_id:
+            from models import DroneBase
+            base = db.query(DroneBase).filter(DroneBase.id == drone.base_id).first()
+            if base:
+                print(f"Base: {base.name} (ID: {base.id})")
+                print(f"Base Location: Latitude={base.lat}, Longitude={base.lng}")
+        
+        # Log waypoints
+        if schedule.path_json and 'coordinates' in schedule.path_json:
+            waypoints = schedule.path_json['coordinates']
+            print(f"Waypoints: {len(waypoints)}")
+            for i, wp in enumerate(waypoints, 1):
+                if isinstance(wp, (list, tuple)) and len(wp) >= 2:
+                    print(f"  Waypoint {i}: Longitude={wp[0]}, Latitude={wp[1]}")
+                else:
+                    print(f"  Waypoint {i}: {wp}")
+        else:
+            print("Waypoints: Using default patrol route")
+        
+        print("=" * 50)
+        
         return schedule
-    except IntegrityError:
+    except IntegrityError as e:
         db.rollback()
+        print(f"[SCHEDULES] ❌ Database integrity error: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Database integrity error"
         )
+    except HTTPException:
+        # Re-raise HTTP exceptions as-is
+        raise
     except Exception as e:
         db.rollback()
+        print(f"[SCHEDULES] ❌ Unexpected error: {str(e)}")
+        print(f"[SCHEDULES] Error type: {type(e).__name__}")
+        import traceback
+        traceback.print_exc()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=str(e)
@@ -122,18 +180,11 @@ def update_schedule(
     db: Session = Depends(get_db)
 ):
     """Update a schedule"""
-    try:
-        schedule_uuid = uuid.UUID(schedule_id)
-    except ValueError:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid schedule ID format"
-        )
-    
     user_id = current_user.get('sub')
     role = current_user.get('user_metadata', {}).get('role', 'user')
     
-    schedule = db.query(Schedule).filter(Schedule.id == schedule_uuid).first()
+    # IDs are now strings, no UUID parsing needed
+    schedule = db.query(Schedule).filter(Schedule.id == schedule_id).first()
     
     if not schedule:
         raise HTTPException(
@@ -170,18 +221,11 @@ def delete_schedule(
     db: Session = Depends(get_db)
 ):
     """Delete a schedule"""
-    try:
-        schedule_uuid = uuid.UUID(schedule_id)
-    except ValueError:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid schedule ID format"
-        )
-    
     user_id = current_user.get('sub')
     role = current_user.get('user_metadata', {}).get('role', 'user')
     
-    schedule = db.query(Schedule).filter(Schedule.id == schedule_uuid).first()
+    # IDs are now strings, no UUID parsing needed
+    schedule = db.query(Schedule).filter(Schedule.id == schedule_id).first()
     
     if not schedule:
         raise HTTPException(

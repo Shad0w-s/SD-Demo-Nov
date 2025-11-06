@@ -21,10 +21,11 @@ import { api } from '@/lib/api'
 interface ScheduleModalProps {
   isOpen: boolean
   onClose: () => void
+  onDrawingChange?: (drawing: boolean) => void
 }
 
-export default function ScheduleModal({ isOpen, onClose }: ScheduleModalProps) {
-  const { selectedDrone, currentPath, setSchedules, setIsLoading, setError } = useAppStore()
+export default function ScheduleModal({ isOpen, onClose, onDrawingChange }: ScheduleModalProps) {
+  const { selectedDrone, currentPath, setSchedules, setIsLoading, setError, setCurrentPath } = useAppStore()
   const [date, setDate] = useState('')
   const [time, setTime] = useState('')
   const [duration, setDuration] = useState('60') // Default 60 minutes
@@ -53,6 +54,12 @@ export default function ScheduleModal({ isOpen, onClose }: ScheduleModalProps) {
       return
     }
 
+    // Validate that at least one waypoint is placed
+    if (!currentPath || currentPath.length < 1) {
+      setError('Please place at least one waypoint before scheduling')
+      return
+    }
+
     try {
       setIsSubmitting(true)
       setIsLoading(true)
@@ -62,27 +69,106 @@ export default function ScheduleModal({ isOpen, onClose }: ScheduleModalProps) {
       const durationMinutes = parseInt(duration) || 60
       const endDateTime = new Date(startDateTime.getTime() + durationMinutes * 60 * 1000)
 
-      // Use current path if available, otherwise use empty path (will use default route)
+      // Use current path (required - validated above)
       const scheduleData = {
         drone_id: selectedDrone.id,
         start_time: startDateTime.toISOString(),
         end_time: endDateTime.toISOString(),
-        path_json: currentPath && currentPath.length >= 2 
-          ? { coordinates: currentPath } 
-          : undefined, // Optional path - will use default patrol route if not provided
+        path_json: { coordinates: currentPath }, // Always include path since waypoints are required
       }
 
-      await api.createSchedule(scheduleData)
+      // Log schedule parameters to console BEFORE API call
+      console.log('=== Schedule Flight Parameters ===')
+      console.log('Drone ID:', scheduleData.drone_id)
+      console.log('Start Time:', scheduleData.start_time)
+      console.log('End Time:', scheduleData.end_time)
+      console.log('Duration (minutes):', durationMinutes)
+      console.log('Path JSON:', scheduleData.path_json)
+      if (currentPath && currentPath.length >= 1) {
+        console.log('Waypoints:', currentPath)
+        console.log('Waypoint Count:', currentPath.length)
+      }
+      console.log('Full Schedule Data:', JSON.stringify(scheduleData, null, 2))
+      console.log('===================================')
 
+      // Log schedule creation details
+      console.log('✅ Schedule Created Successfully')
+      console.log('=== Schedule Details ===')
+      console.log(`Drone: ${selectedDrone.name} (${scheduleData.drone_id})`)
+      console.log(`Start Time: ${scheduleData.start_time}`)
+      console.log(`End Time: ${scheduleData.end_time}`)
+      console.log(`Duration: ${durationMinutes} minutes`)
+      if (currentPath && currentPath.length >= 1) {
+        console.log(`Waypoints: ${currentPath.length} waypoints`)
+        currentPath.forEach((wp, index) => {
+          console.log(`  Waypoint ${index + 1}: [${wp[0]}, ${wp[1]}] (Lng: ${wp[0]}, Lat: ${wp[1]})`)
+        })
+      }
+      console.log('========================')
+
+      // Create schedule in database
+      await api.createSchedule(scheduleData)
       const schedules = await api.getSchedules()
       setSchedules(schedules)
+
+      // Clear waypoints and exit drawing mode after successful schedule creation
+      setCurrentPath(null)
+      if (onDrawingChange) {
+        onDrawingChange(false)
+      }
 
       onClose()
       setDate('')
       setTime('')
       setDuration('60')
     } catch (error) {
-      setError(error instanceof Error ? error.message : 'Failed to create schedule')
+      // Enhanced error logging
+      console.error('❌ Schedule submission error:', error)
+      console.error('Error type:', error?.constructor?.name)
+      console.error('Error details:', JSON.stringify(error, Object.getOwnPropertyNames(error || {}), 2))
+      
+      // Try to extract meaningful error message
+      let errorMessage = 'Failed to create schedule'
+      
+      if (error && typeof error === 'object') {
+        // Check for ApiError structure
+        if ('message' in error) {
+          errorMessage = (error as any).message
+        } else if ('detail' in error) {
+          errorMessage = (error as any).detail
+        } else if ('error' in error) {
+          errorMessage = (error as any).error
+        } else if (error instanceof Error) {
+          errorMessage = error.message
+        } else {
+          // Try to stringify the error object
+          try {
+            const errorStr = JSON.stringify(error, Object.getOwnPropertyNames(error), 2)
+            errorMessage = errorStr.length > 200 ? errorStr.substring(0, 200) + '...' : errorStr
+          } catch {
+            errorMessage = String(error)
+          }
+        }
+        
+        // Log status code if available
+        if ('status' in error) {
+          console.error('HTTP Status:', (error as any).status)
+          if ((error as any).status === 403) {
+            errorMessage = 'Access denied. Please check your authentication or CORS configuration.'
+          } else if ((error as any).status === 401) {
+            errorMessage = 'Authentication required. Please log in again.'
+          } else if ((error as any).status === 0 || (error as any).status === undefined) {
+            errorMessage = 'Network error. Please check if the backend server is running.'
+          }
+        }
+      } else if (error instanceof Error) {
+        errorMessage = error.message
+      } else {
+        errorMessage = String(error)
+      }
+      
+      console.error('Final error message:', errorMessage)
+      setError(errorMessage)
     } finally {
       setIsSubmitting(false)
       setIsLoading(false)
@@ -112,14 +198,14 @@ export default function ScheduleModal({ isOpen, onClose }: ScheduleModalProps) {
               <Chip label={selectedDrone.name} size="small" />
             </Box>
           )}
-          {currentPath && currentPath.length >= 2 && (
-            <Alert severity="info" sx={{ mb: 2 }}>
-              Custom route with {currentPath.length} waypoints will be used
+          {currentPath && currentPath.length >= 1 && (
+            <Alert severity="success" sx={{ mb: 2 }}>
+              Route with {currentPath.length} waypoint{currentPath.length !== 1 ? 's' : ''} will be used
             </Alert>
           )}
-          {(!currentPath || currentPath.length < 2) && (
-            <Alert severity="info" sx={{ mb: 2 }}>
-              Default patrol route will be used (you can draw a custom path on the map if needed)
+          {(!currentPath || currentPath.length < 1) && (
+            <Alert severity="warning" sx={{ mb: 2 }}>
+              Please place at least one waypoint on the map before scheduling
             </Alert>
           )}
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: 1 }}>

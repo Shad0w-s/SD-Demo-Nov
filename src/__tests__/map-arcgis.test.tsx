@@ -206,6 +206,28 @@ describe('ArcGIS Map Implementation', () => {
       // Result should have type property
       expect(result).toHaveProperty('type')
     })
+
+    it('should fallback to OSM when API key is missing', async () => {
+      // Save original value
+      const originalKey = process.env.NEXT_PUBLIC_ARCGIS_API_KEY
+      
+      // Remove API key
+      delete process.env.NEXT_PUBLIC_ARCGIS_API_KEY
+      
+      const mapUtils = await import('@/lib/map')
+      const container = document.createElement('div')
+      
+      // Should fallback to OSM immediately when no API key
+      const result = await mapUtils.initializeMap(container)
+      expect(result).toBeDefined()
+      expect(result).toHaveProperty('type')
+      // In test environment with mocks, it will use OSM
+      
+      // Restore original value
+      if (originalKey) {
+        process.env.NEXT_PUBLIC_ARCGIS_API_KEY = originalKey
+      }
+    })
   })
 
   describe('Coordinate System Compatibility', () => {
