@@ -4,9 +4,14 @@ import { Session } from '@supabase/supabase-js'
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
 
+// Check if Supabase is properly configured
+export const isSupabaseConfigured = !!(supabaseUrl && supabaseAnonKey && 
+  !supabaseUrl.includes('placeholder') && 
+  supabaseUrl.startsWith('http'))
+
 // Only create client if we have the required environment variables
 // This prevents errors during static generation
-export const supabase = supabaseUrl && supabaseAnonKey
+export const supabase = isSupabaseConfigured
   ? createClient(supabaseUrl, supabaseAnonKey, {
       auth: {
         autoRefreshToken: true,

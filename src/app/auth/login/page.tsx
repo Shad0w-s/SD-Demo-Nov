@@ -14,7 +14,7 @@ import {
   Link as MuiLink,
 } from '@mui/material'
 import { Login as LoginIcon } from '@mui/icons-material'
-import { supabase } from '@/lib/supabaseClient'
+import { supabase, isSupabaseConfigured } from '@/lib/supabaseClient'
 
 export default function LoginPage() {
   const router = useRouter()
@@ -22,6 +22,63 @@ export default function LoginPage() {
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
+
+  // Check if Supabase is configured
+  if (!isSupabaseConfigured) {
+    return (
+      <Box
+        sx={{
+          minHeight: '100vh',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          bgcolor: 'background.default',
+          backgroundImage: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+        }}
+      >
+        <Paper
+          elevation={8}
+          sx={{
+            p: 4,
+            width: '100%',
+            maxWidth: 500,
+            borderRadius: 3,
+          }}
+        >
+          <Alert severity="warning" sx={{ mb: 2, borderRadius: 2 }}>
+            <Typography variant="h6" gutterBottom>
+              Supabase Not Configured
+            </Typography>
+            <Typography variant="body2" paragraph>
+              To enable user authentication, please configure Supabase environment variables:
+            </Typography>
+            <Typography variant="body2" component="pre" sx={{ 
+              bgcolor: 'background.paper', 
+              p: 2, 
+              borderRadius: 1,
+              fontSize: '0.875rem',
+              overflow: 'auto'
+            }}>
+              NEXT_PUBLIC_SUPABASE_URL=your-supabase-url{'\n'}
+              NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
+            </Typography>
+            <Typography variant="body2" sx={{ mt: 2 }}>
+              Set these in your Render dashboard under Environment Variables for the frontend service.
+            </Typography>
+          </Alert>
+          <Button
+            fullWidth
+            variant="outlined"
+            component={Link}
+            href="/"
+            sx={{ mt: 2 }}
+          >
+            Go to Home
+          </Button>
+        </Paper>
+      </Box>
+    )
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
