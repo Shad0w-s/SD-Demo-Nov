@@ -18,6 +18,7 @@ COPY . .
 
 # Set environment variables for build
 ENV NEXT_TELEMETRY_DISABLED 1
+# Use localhost since browser (not container) makes API calls
 ENV NEXT_PUBLIC_API_BASE_URL=http://localhost:8000
 
 # Build the application

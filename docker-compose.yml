@@ -31,8 +31,9 @@ services:
     ports:
       - "3000:3000"
     environment:
-      - NEXT_PUBLIC_API_BASE_URL=http://localhost:8000
-      - NEXT_PUBLIC_ARCGIS_API_KEY=${NEXT_PUBLIC_ARCGIS_API_KEY}
+      # Note: NEXT_PUBLIC_ vars are baked at build time, but we set it here for reference
+      # The actual value comes from the Dockerfile build
+      - NEXT_PUBLIC_ARCGIS_API_KEY=${NEXT_PUBLIC_ARCGIS_API_KEY:-}
       - NEXT_PUBLIC_SUPABASE_URL=
       - NEXT_PUBLIC_SUPABASE_ANON_KEY=
     depends_on:
