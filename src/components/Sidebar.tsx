@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { usePathname } from 'next/navigation'
 import {
   Box,
@@ -10,17 +10,17 @@ import {
   MenuItem,
   FormControl,
   InputLabel,
-  Button,
   List,
   ListItem,
   ListItemText,
-  CircularProgress,
-  Divider,
   Chip,
+  IconButton,
 } from '@mui/material'
-import { useAppStore, Drone } from '@/lib/store'
+import { Close } from '@mui/icons-material'
+import { useAppStore } from '@/lib/store'
 import { api } from '@/lib/api'
 import { ApiError } from '@/lib/api'
+import { mockScheduleIds } from '@/lib/mockData'
 
 export default function Sidebar() {
   const pathname = usePathname()
@@ -29,13 +29,13 @@ export default function Sidebar() {
     drones,
     schedules,
     selectedDrone,
-    setDrones,
-    setSchedules,
     setSelectedDrone,
     isLoading,
-    setIsLoading,
     setError,
+    removeSchedule,
   } = useAppStore()
+
+  const [deletingId, setDeletingId] = useState<string | null>(null)
 
   // Sidebar now only reads from store - no blocking API calls
   // Data is loaded by Dashboard component in background
@@ -49,6 +49,39 @@ export default function Sidebar() {
 
     const drone = drones.find((d) => d.id === droneId)
     setSelectedDrone(drone || null)
+  }
+
+  async function handleDeleteSchedule(scheduleId: string) {
+    const isMockSchedule = mockScheduleIds.has(scheduleId)
+
+    if (isMockSchedule) {
+      removeSchedule(scheduleId)
+      return
+    }
+
+    try {
+      setDeletingId(scheduleId)
+      await api.deleteSchedule(scheduleId)
+      removeSchedule(scheduleId)
+    } catch (error) {
+      console.error('Failed to delete schedule', error)
+      let errorMessage = 'Failed to delete schedule'
+
+      if (error && typeof error === 'object') {
+        const apiError = error as ApiError
+        if (apiError?.message) {
+          errorMessage = apiError.message
+        } else if ('detail' in apiError && (apiError as any).detail) {
+          errorMessage = (apiError as any).detail
+        }
+      } else if (error instanceof Error) {
+        errorMessage = error.message
+      }
+
+      setError(errorMessage)
+    } finally {
+      setDeletingId(null)
+    }
   }
 
 
@@ -158,34 +191,67 @@ export default function Sidebar() {
                       flexDirection: 'column',
                       alignItems: 'flex-start',
                     }}
-                  >
-                    <Box sx={{ width: '100%' }}>
-                      <ListItemText
-                        primary={
-                          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <Typography variant="body2" fontWeight="bold">
-                              {startTime.toLocaleDateString()} {startTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                            </Typography>
-                            {duration && (
-                              <Chip label={`${duration} min`} size="small" color="primary" />
-                            )}
-                          </Box>
-                        }
-                        secondary={
-                          <Box sx={{ mt: 0.5 }}>
-                            <Typography variant="caption" color="text.secondary" display="block">
-                              {hasRoute ? `Route: ${waypointCount} waypoints` : 'Default patrol route'}
-                            </Typography>
-                            {endTime && (
-                              <Typography variant="caption" color="text.secondary" display="block">
-                                Ends: {endTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    >
+                      <Box
+                        sx={{
+                          width: '100%',
+                          display: 'flex',
+                          alignItems: 'flex-start',
+                          gap: 1,
+                        }}
+                      >
+                        <ListItemText
+                          sx={{ flex: 1, minWidth: 0 }}
+                          primary={
+                            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                              <Typography variant="body2" fontWeight="bold">
+                                {startTime.toLocaleDateString()} {startTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                               </Typography>
-                            )}
-                          </Box>
-                        }
-                      />
-                    </Box>
-                  </ListItem>
+                              {duration && (
+                                <Chip label={`${duration} min`} size="small" color="primary" />
+                              )}
+                            </Box>
+                          }
+                          secondary={
+                            <Box sx={{ mt: 0.5 }}>
+                              <Typography variant="caption" color="text.secondary" display="block">
+                                {hasRoute ? `Route: ${waypointCount} waypoints` : 'Default patrol route'}
+                              </Typography>
+                              {endTime && (
+                                <Typography variant="caption" color="text.secondary" display="block">
+                                  Ends: {endTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                </Typography>
+                              )}
+                            </Box>
+                          }
+                        />
+                        <IconButton
+                          size="small"
+                          aria-label="Delete schedule"
+                          title="Delete schedule"
+                          disableRipple
+                          onClick={(event) => {
+                            event.preventDefault()
+                            event.stopPropagation()
+                            handleDeleteSchedule(schedule.id)
+                          }}
+                          disabled={deletingId === schedule.id}
+                          sx={{
+                            color: 'text.disabled',
+                            transition: (theme) => theme.transitions.create(['color']),
+                            '&:hover': {
+                              color: 'error.main',
+                              backgroundColor: 'transparent',
+                            },
+                            '&.Mui-disabled': {
+                              color: 'text.disabled',
+                            },
+                          }}
+                        >
+                          <Close fontSize="small" />
+                        </IconButton>
+                      </Box>
+                    </ListItem>
                 )
               })}
           </List>

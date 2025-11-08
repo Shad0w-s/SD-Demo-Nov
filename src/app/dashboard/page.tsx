@@ -35,6 +35,7 @@ function DashboardContentInner() {
     setDrones,
     setBases,
     setSchedules,
+    mergeSchedules,
     setIsLoading,
     setError,
     selectedDrone,
@@ -73,7 +74,7 @@ function DashboardContentInner() {
           setBases(basesData)
         }
         if (schedulesData && schedulesData.length > 0) {
-          setSchedules(schedulesData)
+          mergeSchedules(schedulesData)
         }
       } catch (error) {
         // Silently fail - we already have mock data
@@ -89,7 +90,7 @@ function DashboardContentInner() {
     } else {
       setTimeout(loadInitialData, 100)
     }
-  }, [setDrones, setBases, setIsLoading, setSchedules])
+  }, [setDrones, setBases, setIsLoading, setSchedules, mergeSchedules])
 
   // Memoize drone and base selection logic
   const selectedDroneMemo = useMemo(() => {

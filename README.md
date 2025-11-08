@@ -180,6 +180,8 @@ npm run dev
 - ✅ Minimum 1 waypoint validation
 - ✅ Detailed console logging for debugging
 - ✅ Auto-clear waypoints after schedule creation
+- ✅ Sidebar merges preloaded demo schedules with database-backed updates
+- ✅ Delete icon removes schedules (demo schedules return on page reload; saved schedules persist)
 
 ### Map Features
 - ✅ ArcGIS Maps SDK integration (satellite view)

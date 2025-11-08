@@ -273,3 +273,5 @@ export const mockSchedules: Schedule[] = [
   },
 ]
 
+export const mockScheduleIds = new Set<string>(mockSchedules.map((schedule) => schedule.id))
+

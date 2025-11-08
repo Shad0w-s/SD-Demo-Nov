@@ -25,7 +25,7 @@ interface ScheduleModalProps {
 }
 
 export default function ScheduleModal({ isOpen, onClose, onDrawingChange }: ScheduleModalProps) {
-  const { selectedDrone, currentPath, setSchedules, setIsLoading, setError, setCurrentPath } = useAppStore()
+  const { selectedDrone, currentPath, addSchedule, mergeSchedules, setIsLoading, setError, setCurrentPath } = useAppStore()
   const [date, setDate] = useState('')
   const [time, setTime] = useState('')
   const [duration, setDuration] = useState('60') // Default 60 minutes
@@ -107,9 +107,16 @@ export default function ScheduleModal({ isOpen, onClose, onDrawingChange }: Sche
       console.log('========================')
 
       // Create schedule in database
-      await api.createSchedule(scheduleData)
-      const schedules = await api.getSchedules()
-      setSchedules(schedules)
+      const createdSchedule = await api.createSchedule(scheduleData)
+      addSchedule(createdSchedule)
+
+      // Attempt to refresh from backend (non-critical)
+      try {
+        const schedules = await api.getSchedules()
+        mergeSchedules(schedules)
+      } catch (refreshError) {
+        console.warn('Unable to refresh schedules after creation, using optimistic state.', refreshError)
+      }
 
       // Clear waypoints and exit drawing mode after successful schedule creation
       setCurrentPath(null)

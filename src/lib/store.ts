@@ -63,6 +63,9 @@ interface AppState {
   addDrone: (drone: Drone) => void
   updateDrone: (id: string, updates: Partial<Drone>) => void
   removeDrone: (id: string) => void
+  addSchedule: (schedule: Schedule) => void
+  removeSchedule: (id: string) => void
+  mergeSchedules: (schedules: Schedule[]) => void
 }
 
 export const useAppStore = create<AppState>((set) => ({
@@ -99,5 +102,30 @@ export const useAppStore = create<AppState>((set) => ({
     }),
   removeDrone: (id) =>
     set((state) => ({ drones: state.drones.filter((d) => d.id !== id) })),
+  addSchedule: (schedule) =>
+    set((state) => {
+      const existingIndex = state.schedules.findIndex((s) => s.id === schedule.id)
+      if (existingIndex >= 0) {
+        const nextSchedules = [...state.schedules]
+        nextSchedules[existingIndex] = { ...nextSchedules[existingIndex], ...schedule }
+        return { schedules: nextSchedules }
+      }
+      return { schedules: [...state.schedules, schedule] }
+    }),
+  removeSchedule: (id) =>
+    set((state) => ({
+      schedules: state.schedules.filter((schedule) => schedule.id !== id),
+    })),
+  mergeSchedules: (incoming) =>
+    set((state) => {
+      const scheduleMap = new Map<string, Schedule>()
+      state.schedules.forEach((schedule) => {
+        scheduleMap.set(schedule.id, schedule)
+      })
+      incoming.forEach((schedule) => {
+        scheduleMap.set(schedule.id, schedule)
+      })
+      return { schedules: Array.from(scheduleMap.values()) }
+    }),
 }))
 
