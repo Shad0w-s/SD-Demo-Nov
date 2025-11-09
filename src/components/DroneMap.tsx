@@ -323,7 +323,8 @@ function DroneMapComponent({ isDrawing = false, onDrawingChange }: DroneMapProps
             instance,
             { name: 'waypoint' },
             coord,
-            '#f59e0b'
+            '#f59e0b',
+            'triangle'
           )
         }
 
