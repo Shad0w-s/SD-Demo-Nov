@@ -1,4 +1,4 @@
-#!/Users/adamfarhat/SD-Demo-Nov/backend/venv/bin/python3
+#!/Users/adam/Documents/GitHub/SD-Demo-Nov/backend/venv/bin/python3
 import sys
 from watchfiles.cli import cli
 if __name__ == '__main__':
